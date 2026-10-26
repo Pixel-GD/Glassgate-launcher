@@ -12,6 +12,9 @@ import com.pixelgd.glassgate.apps.AppEntry
 import com.pixelgd.glassgate.home.HomeActions
 import com.pixelgd.glassgate.home.HomeView
 import com.pixelgd.glassgate.layout.HomeItem
+import com.pixelgd.glassgate.widgets.WidgetBinder
+import com.pixelgd.glassgate.widgets.WidgetPicker
+import com.pixelgd.glassgate.widgets.Widgets
 
 /**
  * The home activity. Builds the [HomeView] and an [overlay] layer that feature modules
@@ -41,6 +44,24 @@ class LauncherActivity : Activity(), HomeActions {
         root.addView(overlay, FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
         setContentView(root)
         updateSystemBars()
+    }
+
+    override fun onStart() {
+        super.onStart()
+        Widgets.of(this).startListening()
+    }
+
+    override fun onStop() {
+        Widgets.of(this).stopListening()
+        super.onStop()
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        if (!WidgetBinder.onActivityResult(this, requestCode, resultCode)) {
+            @Suppress("DEPRECATION")
+            super.onActivityResult(requestCode, resultCode, data)
+        }
     }
 
     override fun onResume() {
@@ -102,11 +123,15 @@ class LauncherActivity : Activity(), HomeActions {
         // Placeholder until the glass context menu module lands.
         val menu = PopupMenu(this, source)
         if (app != null) menu.menu.add(0, 1, 0, "App info")
-        menu.menu.add(0, 2, 1, "Edit Home Screen")
+        if (item is HomeItem.Widget) menu.menu.add(0, 3, 0, "Remove Widget")
+        menu.menu.add(0, 4, 1, "Add Widget")
+        menu.menu.add(0, 2, 2, "Edit Home Screen")
         menu.setOnMenuItemClickListener {
             when (it.itemId) {
                 1 -> app?.let { a -> launcher.apps.openAppInfo(a) }
                 2 -> enterEditMode()
+                3 -> (item as? HomeItem.Widget)?.let { w -> Widgets.of(this).remove(w) }
+                4 -> WidgetPicker.show(this)
             }
             true
         }

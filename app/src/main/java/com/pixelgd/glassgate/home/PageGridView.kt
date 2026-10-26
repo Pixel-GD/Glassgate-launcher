@@ -7,6 +7,7 @@ import android.view.ViewGroup
 import com.pixelgd.glassgate.Launcher
 import com.pixelgd.glassgate.layout.HomeItem
 import com.pixelgd.glassgate.layout.HomePage
+import com.pixelgd.glassgate.widgets.WidgetViews
 
 /**
  * One home page: lays out icons, folders and widgets on the cols x rows grid. Each child's
@@ -47,8 +48,7 @@ class PageGridView(
                     setOnClickListener { actions.openFolder(item, it) }
                     setOnLongClickListener { actions.showContextMenu(item, null, it); true }
                 }
-                // Widgets module replaces this placeholder with an AppWidgetHostView.
-                is HomeItem.Widget -> View(context)
+                is HomeItem.Widget -> WidgetViews.create(context, actions, item, iconSizePx, showLabels)
             }
             addView(v, LayoutParams(item))
         }
