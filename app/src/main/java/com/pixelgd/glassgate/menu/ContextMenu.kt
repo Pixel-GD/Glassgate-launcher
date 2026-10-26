@@ -31,6 +31,8 @@ import com.pixelgd.glassgate.util.isDarkMode
 import com.pixelgd.glassgate.util.lerp
 import com.pixelgd.glassgate.util.thud
 import com.pixelgd.glassgate.util.withAlpha
+import com.pixelgd.glassgate.widgets.WidgetPicker
+import com.pixelgd.glassgate.widgets.Widgets
 import kotlin.math.hypot
 
 /**
@@ -264,6 +266,7 @@ class ContextMenu private constructor(
             }
             val sections = when {
                 item is HomeItem.Folder -> folderItems(activity, item, source)
+                item is HomeItem.Widget -> widgetItems(activity, item)
                 app != null -> appItems(activity, item as? HomeItem.App, app, source)
                 else -> return
             }
@@ -308,6 +311,14 @@ class ContextMenu private constructor(
                 MenuItem("Edit Home Screen", Glyph.EDIT_HOME) { activity.enterEditMode() },
             ),
             listOf(MenuItem("Remove Folder", Glyph.REMOVE, destructive = true) { Removal.confirmFolder(activity, folder) }),
+        )
+
+        private fun widgetItems(activity: LauncherActivity, widget: HomeItem.Widget) = listOf(
+            listOf(
+                MenuItem("Edit Home Screen", Glyph.EDIT_HOME) { activity.enterEditMode() },
+                MenuItem("Add Widget", Glyph.ADD_WIDGET, afterClose = true) { WidgetPicker.show(activity) },
+            ),
+            listOf(MenuItem("Remove Widget", Glyph.REMOVE, destructive = true) { Widgets.of(activity).remove(widget) }),
         )
 
         /** iOS shows at most four quick actions. */

@@ -15,6 +15,9 @@ import com.pixelgd.glassgate.home.HomeActions
 import com.pixelgd.glassgate.home.HomeView
 import com.pixelgd.glassgate.layout.HomeItem
 import com.pixelgd.glassgate.menu.ContextMenu
+import com.pixelgd.glassgate.widgets.WidgetBinder
+import com.pixelgd.glassgate.widgets.WidgetPicker
+import com.pixelgd.glassgate.widgets.Widgets
 
 /**
  * The home activity. Builds the [HomeView] and an [overlay] layer that feature modules
@@ -33,7 +36,7 @@ class LauncherActivity : Activity(), HomeActions {
         private set
 
     /** Jiggle mode (module: edit). */
-    val editMode by lazy { EditMode(this) }
+    val editMode by lazy { EditMode(this).apply { onAddWidget = { WidgetPicker.show(this@LauncherActivity) } } }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -52,6 +55,24 @@ class LauncherActivity : Activity(), HomeActions {
         onBackInvokedDispatcher.registerOnBackInvokedCallback(OnBackInvokedDispatcher.PRIORITY_DEFAULT) {
             val top = overlay.getChildAt(overlay.childCount - 1) ?: return@registerOnBackInvokedCallback
             if (top is DismissibleOverlay) top.dismiss() else overlay.removeView(top)
+        }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        Widgets.of(this).startListening()
+    }
+
+    override fun onStop() {
+        Widgets.of(this).stopListening()
+        super.onStop()
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        if (!WidgetBinder.onActivityResult(this, requestCode, resultCode)) {
+            @Suppress("DEPRECATION")
+            super.onActivityResult(requestCode, resultCode, data)
         }
     }
 

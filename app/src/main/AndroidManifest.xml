@@ -6,6 +6,9 @@
     <uses-permission android:name="android.permission.VIBRATE" />
     <!-- "Delete App" in the long-press menu and jiggle mode opens the system uninstaller. -->
     <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
+    <!-- Weather widget: Open-Meteo forecast for the phone's rough location. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
     <application
         android:name=".GlassgateApp"
