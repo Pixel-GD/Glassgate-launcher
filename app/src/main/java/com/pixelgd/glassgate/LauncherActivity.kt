@@ -23,6 +23,8 @@ import com.pixelgd.glassgate.widgets.WidgetPicker
 import com.pixelgd.glassgate.widgets.Widgets
 import com.pixelgd.glassgate.spotlight.SpotlightHistory
 import com.pixelgd.glassgate.spotlight.SpotlightView
+import com.pixelgd.glassgate.library.AppUsage
+import com.pixelgd.glassgate.library.LibraryPage
 
 /**
  * The home activity. Builds the [HomeView] and an [overlay] layer that feature modules
@@ -49,6 +51,7 @@ class LauncherActivity : Activity(), HomeActions {
     private val wallpaperListener = WallpaperSource.Listener {
         if (launcher.prefs.iconStyle == IconStyle.TINTED) settingsChanged()
     }
+    private var libraryPage: LibraryPage? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -166,6 +169,7 @@ class LauncherActivity : Activity(), HomeActions {
 
     override fun launch(app: AppEntry, source: View) {
         SpotlightHistory.of(this).record(app)
+        AppUsage.of(this).record(app)
         launcher.apps.launch(app, source)
     }
 
@@ -185,9 +189,14 @@ class LauncherActivity : Activity(), HomeActions {
         editMode.enter()
     }
 
-    override fun createTrailingPage(): View? {
-        // TODO(library module): App Library page
-        return null
+    /** The App Library. One instance per activity, re-sorted on each rebuild. */
+    override fun createTrailingPage(): View {
+        val page = libraryPage ?: LibraryPage(this, this, overlay, home).also {
+            libraryPage = it
+            home.pages.addScrollListener(it)
+        }
+        page.refresh()
+        return page
     }
 }
 

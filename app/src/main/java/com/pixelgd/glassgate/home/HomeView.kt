@@ -131,10 +131,13 @@ class HomeView(context: Context, private val actions: HomeActions) : FrameLayout
         pillLp.bottomMargin = insetBottom + dockH + pillGap
         searchPill.layoutParams = pillLp
 
-        val pagesLp = pages.layoutParams as LayoutParams
-        pagesLp.topMargin = insetTop + context.dpi(14f)
-        pagesLp.bottomMargin = pillLp.bottomMargin + context.dpi(34f) + pillGap
-        pages.layoutParams = pagesLp
+        // Pages fill the screen so a trailing page (App Library) can too; the icon grids keep
+        // clear of the status bar, pill and dock with padding instead.
+        val pageTop = insetTop + context.dpi(14f)
+        val pageBottom = pillLp.bottomMargin + context.dpi(34f) + pillGap
+        for (i in 0 until pages.childCount) {
+            (pages.getChildAt(i) as? PageGridView)?.setPadding(sideMargin, pageTop, sideMargin, pageBottom)
+        }
     }
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {

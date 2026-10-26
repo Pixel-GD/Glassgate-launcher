@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="library_title">App Library</string>
+    <string name="library_suggestions">Suggestions</string>
+    <string name="library_recent">Recently Added</string>
+    <string name="library_social">Social</string>
+    <string name="library_productivity">Productivity &amp; Finance</string>
+    <string name="library_creativity">Creativity</string>
+    <string name="library_entertainment">Entertainment</string>
+    <string name="library_info">Information &amp; Reading</string>
+    <string name="library_shopping">Shopping &amp; Food</string>
+    <string name="library_travel">Travel</string>
+    <string name="library_health">Health &amp; Fitness</string>
+    <string name="library_education">Education</string>
+    <string name="library_games">Games</string>
+    <string name="library_utilities">Utilities</string>
+    <string name="library_other">Other</string>
+</resources>
