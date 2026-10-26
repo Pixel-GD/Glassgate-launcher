@@ -9,7 +9,6 @@ import android.graphics.Paint
 import android.graphics.Typeface
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.RippleDrawable
-import android.os.Build
 import android.text.Editable
 import android.text.InputType
 import android.text.TextPaint
@@ -29,8 +28,7 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ListView
 import android.widget.TextView
-import android.window.OnBackInvokedCallback
-import android.window.OnBackInvokedDispatcher
+import com.pixelgd.glassgate.DismissibleOverlay
 import com.pixelgd.glassgate.Launcher
 import com.pixelgd.glassgate.R
 import com.pixelgd.glassgate.apps.AppEntry
@@ -53,7 +51,7 @@ import java.text.Normalizer
  * filters the list; Enter opens the top match. Lives in LauncherActivity.overlay.
  */
 @SuppressLint("ViewConstructor")
-class LibrarySearchView(context: Context, private val actions: HomeActions) : FrameLayout(context) {
+class LibrarySearchView(context: Context, private val actions: HomeActions) : FrameLayout(context), DismissibleOverlay {
 
     private val launcher = Launcher.of(context)
     private val dark = context.isDarkMode
@@ -79,8 +77,6 @@ class LibrarySearchView(context: Context, private val actions: HomeActions) : Fr
         index.alpha = v
         list.translationY = (1f - v) * context.dp(40f)
     }.also { it.snapTo(0f) }
-
-    private val backCallback: Any? = if (Build.VERSION.SDK_INT >= 33) OnBackInvokedCallback { close() } else null
 
     init {
         background = sheet
@@ -160,18 +156,11 @@ class LibrarySearchView(context: Context, private val actions: HomeActions) : Fr
         appear.animateTo(1f)
         field.requestFocus()
         post { field.windowInsetsController?.show(WindowInsets.Type.ime()) }
-        if (Build.VERSION.SDK_INT >= 33) {
-            findOnBackInvokedDispatcher()?.registerOnBackInvokedCallback(
-                OnBackInvokedDispatcher.PRIORITY_OVERLAY, backCallback as OnBackInvokedCallback)
-        }
     }
 
     override fun onDetachedFromWindow() {
-        if (Build.VERSION.SDK_INT >= 33) {
-            findOnBackInvokedDispatcher()?.unregisterOnBackInvokedCallback(backCallback as OnBackInvokedCallback)
-        }
         appear.cancel()
-        // Home or Back can remove this without close(); don't leave the keyboard up.
+        // Removed without close() (e.g. after a launch): don't leave the keyboard up.
         field.windowInsetsController?.hide(WindowInsets.Type.ime())
         super.onDetachedFromWindow()
     }
@@ -250,6 +239,9 @@ class LibrarySearchView(context: Context, private val actions: HomeActions) : Fr
         field.clearFocus()
         field.windowInsetsController?.hide(WindowInsets.Type.ime())
     }
+
+    /** Home and Back (via LauncherActivity) animate this out too. */
+    override fun dismiss() = close()
 
     fun close() {
         if (closing) return
