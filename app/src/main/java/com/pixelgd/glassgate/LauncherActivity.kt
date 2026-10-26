@@ -9,6 +9,7 @@ import android.view.WindowInsetsController
 import android.widget.FrameLayout
 import android.widget.PopupMenu
 import com.pixelgd.glassgate.apps.AppEntry
+import com.pixelgd.glassgate.folders.FolderView
 import com.pixelgd.glassgate.home.HomeActions
 import com.pixelgd.glassgate.home.HomeView
 import com.pixelgd.glassgate.layout.HomeItem
@@ -81,7 +82,10 @@ class LauncherActivity : Activity(), HomeActions {
     }
 
     fun dismissOverlays() {
-        overlay.removeAllViews()
+        for (i in overlay.childCount - 1 downTo 0) {
+            val v = overlay.getChildAt(i)
+            if (v is DismissibleOverlay) v.dismiss() else overlay.removeView(v)
+        }
     }
 
     // ---- HomeActions: one hook per feature module ----
@@ -95,7 +99,7 @@ class LauncherActivity : Activity(), HomeActions {
     }
 
     override fun openFolder(folder: HomeItem.Folder, source: View) {
-        // TODO(folders module)
+        FolderView.open(this, folder, source)
     }
 
     override fun showContextMenu(item: HomeItem?, app: AppEntry?, source: View) {
@@ -121,4 +125,12 @@ class LauncherActivity : Activity(), HomeActions {
         // TODO(library module): App Library page
         return null
     }
+}
+
+/**
+ * An overlay that animates itself out: [LauncherActivity.dismissOverlays] calls [dismiss]
+ * instead of removing it, and the overlay removes itself when done.
+ */
+interface DismissibleOverlay {
+    fun dismiss()
 }
