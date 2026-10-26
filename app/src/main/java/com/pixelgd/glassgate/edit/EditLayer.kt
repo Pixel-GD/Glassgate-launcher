@@ -27,6 +27,7 @@ import com.pixelgd.glassgate.layout.HomeItem
 import com.pixelgd.glassgate.layout.HomeLayout
 import com.pixelgd.glassgate.layout.HomePage
 import com.pixelgd.glassgate.menu.ContextMenu
+import com.pixelgd.glassgate.menu.GlassAlert
 import com.pixelgd.glassgate.menu.Glyph
 import com.pixelgd.glassgate.menu.MenuItem
 import com.pixelgd.glassgate.menu.Removal
@@ -38,6 +39,9 @@ import com.pixelgd.glassgate.util.lerp
 import com.pixelgd.glassgate.util.thud
 import com.pixelgd.glassgate.util.tick
 import com.pixelgd.glassgate.util.withAlpha
+import com.pixelgd.glassgate.widgets.WidgetFrame
+import com.pixelgd.glassgate.widgets.WidgetSize
+import com.pixelgd.glassgate.widgets.Widgets
 import java.util.WeakHashMap
 import kotlin.math.PI
 import kotlin.math.abs
@@ -62,9 +66,10 @@ class EditLayer(
 
     // ---- what's on screen ----
 
-    /** One app or folder icon on a page or in the dock. */
+    /** One app or folder icon on a page or in the dock, or a widget on a page. */
     private class Icon(
         val view: View,
+        /** Icon size in px; 0 for widgets, whose [rect] is their card. */
         val size: Int,
         val item: HomeItem?,
         /** App key for apps (pages and dock), null for folders. */
@@ -72,6 +77,7 @@ class EditLayer(
         val grid: PageGridView?,
     ) {
         val inDock get() = grid == null
+        val isWidget get() = view is WidgetFrame
         /** Untransformed icon square in layer coordinates, filled by [locate]. */
         val rect = RectF()
         /** The whole view (icon and label), for hit testing. */
@@ -92,6 +98,7 @@ class EditLayer(
                 when (v) {
                     is AppIconView -> out += Icon(v, v.iconSizePx, item, (item as? HomeItem.App)?.key, grid)
                     is FolderIconView -> out += Icon(v, v.iconSizePx, item, null, grid)
+                    is WidgetFrame -> out += Icon(v, 0, item, null, grid)
                 }
             }
         }
@@ -108,10 +115,18 @@ class EditLayer(
     private fun locate(ic: Icon) {
         getLocationInWindow(loc)
         (ic.view.parent as View).getLocationInWindow(ploc)
-        val x = ploc[0] - loc[0] + ic.view.left + (ic.view.width - ic.size) / 2f
-        val y = (ploc[1] - loc[1] + ic.view.top).toFloat()
-        ic.rect.set(x, y, x + ic.size, y + ic.size)
         val left = (ploc[0] - loc[0] + ic.view.left).toFloat()
+        val v = ic.view
+        if (v is WidgetFrame) {
+            val c = v.card
+            val y = (ploc[1] - loc[1] + v.top).toFloat()
+            ic.rect.set(left + c.left, y + c.top, left + c.right, y + c.bottom)
+            ic.bounds.set(ic.rect)
+            return
+        }
+        val x = left + (v.width - ic.size) / 2f
+        val y = (ploc[1] - loc[1] + v.top).toFloat()
+        ic.rect.set(x, y, x + ic.size, y + ic.size)
         ic.bounds.set(left, y, left + ic.view.width, y + ic.view.height)
     }
 
@@ -222,12 +237,19 @@ class EditLayer(
         val t = (now - startTime) / 1000.0
         for (ic in icons) {
             val v = ic.view
-            v.pivotX = v.width / 2f
-            v.pivotY = ic.size / 2f
+            if (v is WidgetFrame) {
+                v.pivotX = (v.card.left + v.card.right) / 2f
+                v.pivotY = (v.card.top + v.card.bottom) / 2f
+            } else {
+                v.pivotX = v.width / 2f
+                v.pivotY = ic.size / 2f
+            }
             val seed = (ic.key ?: (ic.item as? HomeItem.Folder)?.id?.toString() ?: "").hashCode()
             val period = 0.25 + (seed and 0xFF) / 255.0 * 0.05
             val phase = ((seed ushr 8) and 0xFF) / 255.0 * 2 * PI
-            v.rotation = (sin(t * 2 * PI / period + phase) * JIGGLE_DEGREES * shown).toFloat()
+            // Widgets are big, so the same angle would swing their corners a long way.
+            val amp = if (ic.isWidget) JIGGLE_DEGREES * 0.4 else JIGGLE_DEGREES
+            v.rotation = (sin(t * 2 * PI / period + phase) * amp * shown).toFloat()
             if (ownsAlpha) {
                 v.alpha = when {
                     drag?.matches(ic) == true || landing?.matches(ic) == true -> 0f
@@ -236,8 +258,12 @@ class EditLayer(
                     else -> 1f
                 }
             }
-            if (v is FolderIconView) {
-                val s = if (merge?.onto === ic.item) 1.12f else 1f
+            if (v is FolderIconView || v is WidgetFrame) {
+                val s = when {
+                    merge?.onto === ic.item -> 1.12f
+                    stackOnto != null && stackOnto === ic.item -> 1.05f
+                    else -> 1f
+                }
                 if (v.scaleX != s) { v.scaleX = s; v.scaleY = s }
             }
         }
@@ -264,8 +290,8 @@ class EditLayer(
                 canvas.save()
                 canvas.translate(origin[0] + v.translationX, origin[1] + v.translationY)
                 canvas.rotate(v.rotation, v.pivotX, v.pivotY)
-                val cx = (v.width - ic.size) / 2f + badgeR * 0.35f
-                val cy = badgeR * 0.35f
+                val cx = ic.rect.left - origin[0] + badgeR * 0.35f
+                val cy = ic.rect.top - origin[1] + badgeR * 0.35f
                 canvas.scale(b, b, cx, cy)
                 canvas.drawCircle(cx, cy, badgeR, badgeFill)
                 canvas.drawLine(cx - badgeR * 0.45f, cy, cx + badgeR * 0.45f, cy, badgeMinus)
@@ -407,6 +433,10 @@ class EditLayer(
     private fun onBadge(ic: Icon) {
         when (val item = ic.item) {
             is HomeItem.Folder -> Removal.confirmFolder(activity, item)
+            is HomeItem.Widget -> GlassAlert.show(activity, "Remove Widget?",
+                "Removing this widget will not delete any apps or data.",
+                GlassAlert.Button("Remove", destructive = true) { Widgets.of(activity).remove(item) },
+                GlassAlert.Button("Cancel", cancel = true))
             else -> {
                 val app = ic.key?.let { launcher.apps[it] } ?: return
                 Removal.confirmApp(activity, app, item as? HomeItem.App)
@@ -425,6 +455,10 @@ class EditLayer(
         data class Cell(val grid: PageGridView, val cx: Int, val cy: Int) : Target()
         data class Merge(val grid: PageGridView, val onto: HomeItem) : Target()
         data class Dock(val index: Int) : Target()
+        /** A widget's new top-left cell. */
+        data class WidgetCell(val grid: PageGridView, val cx: Int, val cy: Int) : Target()
+        /** A widget dropped on another of the same size makes a Smart Stack. */
+        data class Stack(val grid: PageGridView, val onto: HomeItem.Widget) : Target()
         object None : Target()
     }
 
@@ -485,6 +519,7 @@ class EditLayer(
     private var pendingSince = 0L
     private var applied: Target = Target.None
     private var merge: Target.Merge? = null
+    private var stackOnto: HomeItem.Widget? = null
     private var overflowItem: HomeItem? = null
     private var tempPage: PageGridView? = null
     private var edgeSince = 0L
@@ -503,7 +538,7 @@ class EditLayer(
 
     private fun beginDragAt(ic: Icon, x: Float, y: Float): Boolean {
         if (drag != null || landing != null) return false
-        val bmp = ContextMenu.snapshot(ic.view) ?: return false
+        val bmp = (if (ic.isWidget) snapshotCard(ic.view as WidgetFrame) else ContextMenu.snapshot(ic.view)) ?: return false
         val d = Drag(bmp, ic.item, ic.key, ic.inDock, x - ic.rect.left, y - ic.rect.top)
         d.fingerX = x
         d.fingerY = y
@@ -514,6 +549,14 @@ class EditLayer(
         ic.view.alpha = 0f
         thud()
         return true
+    }
+
+    private fun snapshotCard(f: WidgetFrame): Bitmap? {
+        val c = f.card
+        if (c.width == 0 || c.height == 0) return null
+        val bmp = Bitmap.createBitmap(c.width, c.height, Bitmap.Config.ARGB_8888)
+        c.draw(Canvas(bmp))
+        return bmp
     }
 
     /** Raw screen coordinates, from a gesture another view owns (see [EditMode.continueDrag]). */
@@ -539,18 +582,19 @@ class EditLayer(
             pendingSince = SystemClock.uptimeMillis()
         }
         val wait = when (pending) {
-            is Target.Merge -> MERGE_DWELL_MS
+            is Target.Merge, is Target.Stack -> MERGE_DWELL_MS
             is Target.Cell -> REFLOW_DWELL_MS
             else -> 0L
         }
         if (pending != applied && SystemClock.uptimeMillis() - pendingSince >= wait) {
             applied = pending
             preview(d, applied)
-            if (applied is Target.Merge || applied is Target.Dock) tick()
+            if (applied is Target.Merge || applied is Target.Dock || applied is Target.Stack) tick()
         }
     }
 
     private fun findTarget(d: Drag): Target {
+        (d.item as? HomeItem.Widget)?.let { return findWidgetTarget(d, it) }
         val cx = d.centerX
         val cy = d.centerY
         val layout = launcher.layout.layout
@@ -594,6 +638,28 @@ class EditLayer(
 
     private val dockPad = activity.dpi(14f)
 
+    /** Widgets go where their top-left cell lands if the area is free, or onto a same-size widget. */
+    private fun findWidgetTarget(d: Drag, w: HomeItem.Widget): Target {
+        if (inDock(d.centerY)) return Target.None
+        val grid = home.pages.pageAt(home.pages.currentPage) as? PageGridView ?: return Target.None
+        val page = grid.page ?: return Target.None
+        getLocationInWindow(loc)
+        home.pages.getLocationInWindow(ploc)
+        val ox = (ploc[0] - loc[0]).toFloat()
+        val oy = (ploc[1] - loc[1]).toFloat()
+        val centre = grid.cellAt(d.centerX - ox, d.centerY - oy)
+        val over = centre?.let { c -> page.items.firstOrNull { it !== w && it.covers(c.first, c.second) } }
+        if (over is HomeItem.Widget && WidgetSize.of(over) == WidgetSize.of(w)) return Target.Stack(grid, over)
+        val left = d.fingerX - d.grabX - ox
+        val top = d.fingerY - d.grabY - oy
+        val cell = grid.cellAt(left + grid.cellWidth / 2f, top + grid.cellHeight / 2f)
+            ?: grid.cellAt(left.coerceAtLeast(grid.paddingLeft.toFloat()) + 1f, top.coerceAtLeast(grid.paddingTop.toFloat()) + 1f)
+            ?: return Target.None
+        val cx = cell.first.coerceIn(0, (grid.cols - w.spanX).coerceAtLeast(0))
+        val cy = cell.second.coerceIn(0, (grid.rows - w.spanY).coerceAtLeast(0))
+        return if (page.isFree(cx, cy, w.spanX, w.spanY, grid.cols, grid.rows, ignore = w)) Target.WidgetCell(grid, cx, cy) else Target.None
+    }
+
     private fun viewFor(grid: PageGridView, item: HomeItem): View? {
         for (i in 0 until grid.childCount) {
             val c = grid.getChildAt(i)
@@ -617,6 +683,7 @@ class EditLayer(
         val want = HashMap<View, Pair<Float, Float>>()
         overflowItem = null
         merge = t as? Target.Merge
+        stackOnto = (t as? Target.Stack)?.onto
 
         if (t is Target.Cell) {
             val page = t.grid.page
@@ -658,12 +725,14 @@ class EditLayer(
     private fun relaxPreview() {
         overflowItem = null
         merge = null
+        stackOnto = null
         for ((sx, sy) in offsets.values) { sx.animateTo(0f); sy.animateTo(0f) }
     }
 
     private fun clearPreview() {
         overflowItem = null
         merge = null
+        stackOnto = null
         for ((v, s) in offsets.entries.toList()) {
             s.first.cancel(); s.second.cancel()
             v.translationX = 0f; v.translationY = 0f
@@ -718,6 +787,7 @@ class EditLayer(
         var t = if (cancel) Target.None else pending
         // A merge only counts once the dwell has passed; before that it's a drop on the cell.
         if (t is Target.Merge && applied != t) t = Target.Cell(t.grid, t.onto.x, t.onto.y)
+        if (t is Target.Stack && applied != t) t = Target.None
         if (t is Target.Cell && t.grid.page?.let { Reflow.push(it, t.grid.cols, t.grid.rows, t.cx, t.cy, d.item) } == null) {
             t = Target.None
         }
@@ -731,7 +801,11 @@ class EditLayer(
         var intoFolder = false
 
         val target = t
-        if (target !is Target.None) {
+        if (target is Target.Stack) {
+            Widgets.of(activity).stackOnto(target.onto, d.item as HomeItem.Widget)
+            landedItem = null
+            landedKey = null
+        } else if (target !is Target.None) {
             launcher.layout.edit { l ->
                 val moving: HomeItem = d.item?.also { item -> for (p in l.pages) p.items.removeAll { it === item } }
                     ?: HomeItem.App(d.key!!).also { l.dock.remove(d.key) }
@@ -773,7 +847,15 @@ class EditLayer(
                             landedItem = moving
                         }
                     }
-                    Target.None -> Unit
+                    is Target.WidgetCell -> {
+                        val page = target.grid.page!!
+                        if (l.pages.none { it === page }) l.pages += page
+                        moving.x = target.cx
+                        moving.y = target.cy
+                        page.items += moving
+                        landedItem = moving
+                    }
+                    is Target.Stack, Target.None -> Unit
                 }
             }
         } else if (temp != null) {
