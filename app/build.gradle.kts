@@ -9,7 +9,7 @@ android {
 
     defaultConfig {
         applicationId = "com.pixelgd.glassgate"
-        minSdk = 31
+        minSdk = 34
         targetSdk = 36
         versionCode = (System.getenv("GITHUB_RUN_NUMBER") ?: "1").toInt()
         versionName = "0.1.0"
