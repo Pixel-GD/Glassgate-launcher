@@ -18,6 +18,8 @@ import com.pixelgd.glassgate.menu.ContextMenu
 import com.pixelgd.glassgate.widgets.WidgetBinder
 import com.pixelgd.glassgate.widgets.WidgetPicker
 import com.pixelgd.glassgate.widgets.Widgets
+import com.pixelgd.glassgate.spotlight.SpotlightHistory
+import com.pixelgd.glassgate.spotlight.SpotlightView
 
 /**
  * The home activity. Builds the [HomeView] and an [overlay] layer that feature modules
@@ -123,11 +125,12 @@ class LauncherActivity : Activity(), HomeActions {
     // ---- HomeActions: one hook per feature module ----
 
     override fun launch(app: AppEntry, source: View) {
+        SpotlightHistory.of(this).record(app)
         launcher.apps.launch(app, source)
     }
 
     override fun openSpotlight() {
-        // TODO(spotlight module)
+        SpotlightView.open(this)
     }
 
     override fun openFolder(folder: HomeItem.Folder, source: View) {
