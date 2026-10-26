@@ -4,7 +4,6 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Color
 import android.graphics.Typeface
-import android.os.Build
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
@@ -12,8 +11,7 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.ScrollView
 import android.widget.TextView
-import android.window.OnBackInvokedCallback
-import android.window.OnBackInvokedDispatcher
+import com.pixelgd.glassgate.DismissibleOverlay
 import com.pixelgd.glassgate.glass.GlassDrawable
 import com.pixelgd.glassgate.glass.GlassStyle
 import com.pixelgd.glassgate.home.AppIconView
@@ -34,7 +32,7 @@ class CategoryFolderView(
     group: LibraryGroup,
     private val actions: HomeActions,
     private val source: View,
-) : FrameLayout(context) {
+) : FrameLayout(context), DismissibleOverlay {
 
     private val sheet = GlassDrawable(this, GlassStyle.SHEET).apply { progress = 0f }
     private val card = FrameLayout(context)
@@ -48,8 +46,6 @@ class CategoryFolderView(
     private var fromScale = 0.4f
 
     private val spring = Spring(Spring.STIFF_UI, Spring.DAMP_UI) { v -> apply(v) }.also { it.snapTo(0f) }
-
-    private val backCallback: Any? = if (Build.VERSION.SDK_INT >= 33) OnBackInvokedCallback { close() } else null
 
     init {
         background = sheet
@@ -122,16 +118,9 @@ class CategoryFolderView(
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
         spring.animateTo(1f)
-        if (Build.VERSION.SDK_INT >= 33) {
-            findOnBackInvokedDispatcher()?.registerOnBackInvokedCallback(
-                OnBackInvokedDispatcher.PRIORITY_OVERLAY, backCallback as OnBackInvokedCallback)
-        }
     }
 
     override fun onDetachedFromWindow() {
-        if (Build.VERSION.SDK_INT >= 33) {
-            findOnBackInvokedDispatcher()?.unregisterOnBackInvokedCallback(backCallback as OnBackInvokedCallback)
-        }
         spring.cancel()
         super.onDetachedFromWindow()
     }
@@ -148,6 +137,9 @@ class CategoryFolderView(
         sheet.progress = v.coerceIn(0f, 1f)
         card.invalidate()
     }
+
+    /** Home and Back (via LauncherActivity) animate this out too. */
+    override fun dismiss() = close()
 
     fun close() {
         if (closing) return
