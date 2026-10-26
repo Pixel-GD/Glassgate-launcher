@@ -83,7 +83,10 @@ class LauncherActivity : Activity(), HomeActions {
     }
 
     fun dismissOverlays() {
-        overlay.removeAllViews()
+        for (i in overlay.childCount - 1 downTo 0) {
+            val v = overlay.getChildAt(i)
+            if (v is DismissibleOverlay) v.dismiss() else overlay.removeView(v)
+        }
     }
 
     // ---- HomeActions: one hook per feature module ----
@@ -124,4 +127,12 @@ class LauncherActivity : Activity(), HomeActions {
         // TODO(library module): App Library page
         return null
     }
+}
+
+/**
+ * An overlay that animates itself out: [LauncherActivity.dismissOverlays] calls [dismiss]
+ * instead of removing it, and the overlay removes itself when done.
+ */
+interface DismissibleOverlay {
+    fun dismiss()
 }

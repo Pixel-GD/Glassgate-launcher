@@ -28,6 +28,7 @@ import android.widget.TextView
 import android.widget.Toast
 import android.window.OnBackInvokedCallback
 import android.window.OnBackInvokedDispatcher
+import com.pixelgd.glassgate.DismissibleOverlay
 import com.pixelgd.glassgate.Launcher
 import com.pixelgd.glassgate.LauncherActivity
 import com.pixelgd.glassgate.apps.AppEntry
@@ -53,7 +54,7 @@ import kotlin.math.max
  */
 @SuppressLint("ViewConstructor")
 class SpotlightView private constructor(private val activity: LauncherActivity) : FrameLayout(activity),
-    AppRepository.Listener {
+    AppRepository.Listener, DismissibleOverlay {
 
     private val launcher = Launcher.of(activity)
     private val history = SpotlightHistory.of(activity)
@@ -222,6 +223,9 @@ class SpotlightView private constructor(private val activity: LauncherActivity) 
     }
 
     override fun onAppsChanged(apps: List<AppEntry>) = onQueryChanged()
+
+    /** Back, Home, or another module closing overlays. */
+    override fun dismiss() = close()
 
     /** Animates out, then removes itself. */
     fun close() {
