@@ -105,6 +105,7 @@ class HomeView(context: Context, private val actions: HomeActions) : FrameLayout
 
         pages.removeAllViews()
         for (page in layout.pages) {
+            if (page.hidden) continue
             pages.addView(PageGridView(context, actions, layout.cols, layout.rows).apply {
                 setPadding(sideMargin, 0, sideMargin, 0)
                 bind(page, iconPx, prefs.showLabels)

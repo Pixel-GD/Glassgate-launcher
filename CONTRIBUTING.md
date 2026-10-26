@@ -60,4 +60,8 @@ Module UIs are added to `LauncherActivity.overlay` and removed on dismiss
   hand-tuning numbers in a view.
 - Motion uses `util.Spring` with the shared presets.
 - Edit the home layout only through `launcher.layout.edit { ... }`.
+- "Remove from Home Screen" puts an app's key in `HomeLayout.libraryOnly` so it isn't re-added;
+  `placeFirstFree` takes it back out (use it for "Add to Home Screen"). Hidden pages have
+  `HomePage.hidden` and aren't shown on the home screen.
+- Back closes the topmost overlay; make an overlay `DismissibleOverlay` to animate out.
 - One feature per pull request, branched from `main`. Keep edits outside your package small.
