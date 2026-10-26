@@ -12,6 +12,8 @@ import com.pixelgd.glassgate.apps.AppEntry
 import com.pixelgd.glassgate.home.HomeActions
 import com.pixelgd.glassgate.home.HomeView
 import com.pixelgd.glassgate.layout.HomeItem
+import com.pixelgd.glassgate.library.AppUsage
+import com.pixelgd.glassgate.library.LibraryPage
 
 /**
  * The home activity. Builds the [HomeView] and an [overlay] layer that feature modules
@@ -28,6 +30,8 @@ class LauncherActivity : Activity(), HomeActions {
     /** Full-screen layer above the home screen for module UIs. */
     lateinit var overlay: FrameLayout
         private set
+
+    private var libraryPage: LibraryPage? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -87,6 +91,7 @@ class LauncherActivity : Activity(), HomeActions {
     // ---- HomeActions: one hook per feature module ----
 
     override fun launch(app: AppEntry, source: View) {
+        AppUsage.of(this).record(app)
         launcher.apps.launch(app, source)
     }
 
@@ -117,8 +122,13 @@ class LauncherActivity : Activity(), HomeActions {
         // TODO(edit module): jiggle mode
     }
 
-    override fun createTrailingPage(): View? {
-        // TODO(library module): App Library page
-        return null
+    /** The App Library. One instance per activity, re-sorted on each rebuild. */
+    override fun createTrailingPage(): View {
+        val page = libraryPage ?: LibraryPage(this, this, overlay, home).also {
+            libraryPage = it
+            home.pages.addScrollListener(it)
+        }
+        page.refresh()
+        return page
     }
 }

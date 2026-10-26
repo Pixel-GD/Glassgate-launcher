@@ -38,6 +38,7 @@ data class GlassStyle(
         val SHEET = GlassStyle(cornerRadius = 0f, blur = 48f, refraction = 0f, bezel = 1f, lightTint = 0.30f, darkTint = 0.45f, sheen = 0f)
         val MENU = GlassStyle(cornerRadius = 22f, blur = 40f, refraction = 6f, bezel = 10f, lightTint = 0.45f, darkTint = 0.50f)
         val BUTTON = GlassStyle(cornerRadius = 999f, refraction = 5f, bezel = 8f, blur = 16f)
+        val LIBRARY_TILE = GlassStyle(cornerRadius = 30f, refraction = 10f, bezel = 14f, blur = 24f)
     }
 }
 
