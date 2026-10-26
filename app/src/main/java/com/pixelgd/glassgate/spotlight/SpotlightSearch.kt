@@ -129,6 +129,9 @@ object SpotlightSearch {
     fun settingsPackage(context: Context): String? =
         Intent(Settings.ACTION_SETTINGS).resolveActivity(context.packageManager)?.packageName
 
+    /** Not in the public SDK, but every Android 14+ Settings app handles it. */
+    private const val NOTIFICATION_SETTINGS = "android.settings.NOTIFICATION_SETTINGS"
+
     val SETTINGS = listOf(
         SettingHit("Wi-Fi", "Connections", Settings.ACTION_WIFI_SETTINGS, "wifi wlan wireless internet network"),
         SettingHit("Bluetooth", "Connections", Settings.ACTION_BLUETOOTH_SETTINGS, "pair headphones earbuds"),
@@ -140,7 +143,7 @@ object SpotlightSearch {
         SettingHit("Cast", "Connected devices", Settings.ACTION_CAST_SETTINGS, "screen mirror smart view"),
         SettingHit("Display", "Settings", Settings.ACTION_DISPLAY_SETTINGS, "brightness dark mode light screen refresh rate motion smoothness font"),
         SettingHit("Sounds and vibration", "Settings", Settings.ACTION_SOUND_SETTINGS, "volume ringtone silent mute haptics"),
-        SettingHit("Notifications", "Settings", Settings.ACTION_NOTIFICATION_SETTINGS, "alerts badges do not disturb"),
+        SettingHit("Notifications", "Settings", NOTIFICATION_SETTINGS, "alerts badges do not disturb"),
         SettingHit("Battery", "Settings", Settings.ACTION_BATTERY_SAVER_SETTINGS, "power saving charge"),
         SettingHit("Storage", "Settings", Settings.ACTION_INTERNAL_STORAGE_SETTINGS, "space memory files"),
         SettingHit("Apps", "Settings", Settings.ACTION_APPLICATION_SETTINGS, "applications uninstall permissions"),
