@@ -32,7 +32,8 @@ sealed class HomeItem {
     fun covers(cx: Int, cy: Int) = cx >= x && cx < x + spanX && cy >= y && cy < y + spanY
 }
 
-class HomePage(val items: MutableList<HomeItem> = ArrayList()) {
+/** One home page. A [hidden] page is kept but not shown (iOS "Edit Pages"). */
+class HomePage(val items: MutableList<HomeItem> = ArrayList(), var hidden: Boolean = false) {
     fun itemAt(x: Int, y: Int): HomeItem? = items.firstOrNull { it.covers(x, y) }
     fun isFree(x: Int, y: Int, spanX: Int, spanY: Int, cols: Int, rows: Int, ignore: HomeItem? = null): Boolean {
         if (x < 0 || y < 0 || x + spanX > cols || y + spanY > rows) return false
@@ -53,6 +54,8 @@ class HomeLayout(
     var rows: Int = 6,
     val pages: MutableList<HomePage> = ArrayList(),
     val dock: MutableList<String> = ArrayList(),
+    /** Apps the user removed from the Home Screen; they stay in the App Library only. */
+    val libraryOnly: MutableSet<String> = LinkedHashSet(),
 ) {
     /** Every app key on the home screen, in pages, folders and the dock. */
     fun allKeys(): Set<String> {
@@ -67,8 +70,10 @@ class HomeLayout(
 
     /** Puts [item] (1x1 unless it has a span) in the first free cell, adding a page if needed. */
     fun placeFirstFree(item: HomeItem, fromPage: Int = 0) {
+        if (item is HomeItem.App) libraryOnly -= item.key
         for (pi in fromPage until pages.size) {
             val p = pages[pi]
+            if (p.hidden) continue
             for (y in 0 until rows) for (x in 0 until cols) {
                 if (p.isFree(x, y, item.spanX, item.spanY, cols, rows)) {
                     item.x = x; item.y = y
@@ -89,6 +94,8 @@ class HomeLayout(
         put("pages", JSONArray().apply {
             for (p in pages) put(JSONArray().apply { for (i in p.items) put(itemToJson(i)) })
         })
+        put("hiddenPages", JSONArray().apply { pages.forEachIndexed { i, p -> if (p.hidden) put(i) } })
+        put("libraryOnly", JSONArray(libraryOnly))
     }
 
     companion object {
@@ -105,6 +112,10 @@ class HomeLayout(
                     l.pages += page
                 }
             }
+            o.optJSONArray("hiddenPages")?.let { a ->
+                for (i in 0 until a.length()) l.pages.getOrNull(a.getInt(i))?.hidden = true
+            }
+            o.optJSONArray("libraryOnly")?.let { a -> for (i in 0 until a.length()) l.libraryOnly += a.getString(i) }
             return l
         }
 

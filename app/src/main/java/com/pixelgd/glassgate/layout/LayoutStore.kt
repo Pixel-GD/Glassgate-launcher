@@ -67,6 +67,7 @@ class LayoutStore(private val context: Context, private val apps: AppRepository)
         edit { l ->
             if (firstRun) l.dock += defaultDock(installed)
             l.dock.retainAll(keys)
+            l.libraryOnly.retainAll(keys)
             for (p in l.pages) {
                 for (item in p.items) if (item is HomeItem.Folder) item.keys.retainAll(keys)
                 p.items.removeAll { it is HomeItem.App && it.key !in keys }
@@ -74,7 +75,7 @@ class LayoutStore(private val context: Context, private val apps: AppRepository)
             }
             if (l.pages.isEmpty()) l.pages += HomePage()
             val present = l.allKeys()
-            for (app in installed) if (app.key !in present) l.placeFirstFree(HomeItem.App(app.key))
+            for (app in installed) if (app.key !in present && app.key !in l.libraryOnly) l.placeFirstFree(HomeItem.App(app.key))
         }
     }
 

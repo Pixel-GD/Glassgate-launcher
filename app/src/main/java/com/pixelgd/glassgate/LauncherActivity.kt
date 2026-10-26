@@ -6,13 +6,15 @@ import android.content.res.Configuration
 import android.os.Bundle
 import android.view.View
 import android.view.WindowInsetsController
+import android.window.OnBackInvokedDispatcher
 import android.widget.FrameLayout
-import android.widget.PopupMenu
 import com.pixelgd.glassgate.apps.AppEntry
+import com.pixelgd.glassgate.edit.EditMode
 import com.pixelgd.glassgate.folders.FolderView
 import com.pixelgd.glassgate.home.HomeActions
 import com.pixelgd.glassgate.home.HomeView
 import com.pixelgd.glassgate.layout.HomeItem
+import com.pixelgd.glassgate.menu.ContextMenu
 
 /**
  * The home activity. Builds the [HomeView] and an [overlay] layer that feature modules
@@ -30,6 +32,9 @@ class LauncherActivity : Activity(), HomeActions {
     lateinit var overlay: FrameLayout
         private set
 
+    /** Jiggle mode (module: edit). */
+    val editMode by lazy { EditMode(this) }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         launcher = Launcher.of(this)
@@ -42,6 +47,12 @@ class LauncherActivity : Activity(), HomeActions {
         root.addView(overlay, FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
         setContentView(root)
         updateSystemBars()
+        // With enableOnBackInvokedCallback, onBackPressed isn't called on Android 13+.
+        // Back closes the top overlay only (e.g. Edit Pages, then jiggle mode).
+        onBackInvokedDispatcher.registerOnBackInvokedCallback(OnBackInvokedDispatcher.PRIORITY_DEFAULT) {
+            val top = overlay.getChildAt(overlay.childCount - 1) ?: return@registerOnBackInvokedCallback
+            if (top is DismissibleOverlay) top.dismiss() else overlay.removeView(top)
+        }
     }
 
     override fun onResume() {
@@ -103,22 +114,11 @@ class LauncherActivity : Activity(), HomeActions {
     }
 
     override fun showContextMenu(item: HomeItem?, app: AppEntry?, source: View) {
-        // Placeholder until the glass context menu module lands.
-        val menu = PopupMenu(this, source)
-        if (app != null) menu.menu.add(0, 1, 0, "App info")
-        menu.menu.add(0, 2, 1, "Edit Home Screen")
-        menu.setOnMenuItemClickListener {
-            when (it.itemId) {
-                1 -> app?.let { a -> launcher.apps.openAppInfo(a) }
-                2 -> enterEditMode()
-            }
-            true
-        }
-        menu.show()
+        if (!editMode.isActive) ContextMenu.show(this, item, app, source)
     }
 
     override fun enterEditMode() {
-        // TODO(edit module): jiggle mode
+        editMode.enter()
     }
 
     override fun createTrailingPage(): View? {
