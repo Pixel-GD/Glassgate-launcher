@@ -47,8 +47,8 @@ Feature modules each get their own package and plug in through one `HomeActions`
 | Context menus | `menu/` | `showContextMenu()` |
 | Jiggle / edit mode | `edit/` | `enterEditMode()` |
 | Widgets | `widgets/` | replace the placeholder in `PageGridView.bind()` |
-| Notification badges | `badges/` | `AppIconView.badgeDrawer` |
-| Settings | `settings/` | `Prefs` in `Launcher.kt`; add an entry point from the menu |
+| Notification badges | `badges/` | `AppIconView.badgeDrawer` (set by `BadgeDrawer.attach`); `Badges.total(apps)` for a folder's count |
+| Settings | `settings/` | `Prefs` in `Launcher.kt` (listen with `prefs.addListener`); open with `SettingsActivity.open(context)` |
 
 Module UIs are added to `LauncherActivity.overlay` and removed on dismiss
 (`dismissOverlays()` is called on Home and Back).

@@ -5,12 +5,15 @@ import android.content.Intent
 import android.content.res.Configuration
 import android.os.Bundle
 import android.view.View
+import android.view.ViewGroup
 import android.view.WindowInsetsController
 import android.widget.FrameLayout
 import android.widget.PopupMenu
 import com.pixelgd.glassgate.apps.AppEntry
+import com.pixelgd.glassgate.glass.WallpaperSource
 import com.pixelgd.glassgate.home.HomeActions
 import com.pixelgd.glassgate.home.HomeView
+import com.pixelgd.glassgate.icons.IconStyle
 import com.pixelgd.glassgate.layout.HomeItem
 
 /**
@@ -29,6 +32,14 @@ class LauncherActivity : Activity(), HomeActions {
     lateinit var overlay: FrameLayout
         private set
 
+    private var resumed = false
+    private var settingsDirty = false
+    private val prefsListener = Prefs.Listener { settingsChanged() }
+    // Tinted icons take their colour from the wallpaper.
+    private val wallpaperListener = WallpaperSource.Listener {
+        if (launcher.prefs.iconStyle == IconStyle.TINTED) settingsChanged()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         launcher = Launcher.of(this)
@@ -41,16 +52,46 @@ class LauncherActivity : Activity(), HomeActions {
         root.addView(overlay, FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
         setContentView(root)
         updateSystemBars()
+        launcher.prefs.addListener(prefsListener)
+        launcher.wallpaper.addListener(wallpaperListener)
+    }
+
+    override fun onDestroy() {
+        launcher.prefs.removeListener(prefsListener)
+        launcher.wallpaper.removeListener(wallpaperListener)
+        super.onDestroy()
     }
 
     override fun onResume() {
         super.onResume()
+        resumed = true
+        if (settingsDirty) applySettings()
         launcher.tilt.start()
     }
 
     override fun onPause() {
+        resumed = false
         launcher.tilt.stop()
         super.onPause()
+    }
+
+    /** Settings changed (usually from the Settings screen): rebuild now, or when we're back. */
+    private fun settingsChanged() {
+        settingsDirty = true
+        if (resumed) applySettings()
+    }
+
+    private fun applySettings() {
+        settingsDirty = false
+        home.rebuild()
+        invalidateAll(home)
+    }
+
+    /** Glass backgrounds keep their last frame until redrawn. */
+    private fun invalidateAll(v: View) {
+        v.invalidate()
+        v.background?.invalidateSelf()
+        if (v is ViewGroup) for (i in 0 until v.childCount) invalidateAll(v.getChildAt(i))
     }
 
     /** Home pressed while already home: close any overlay, else go to page one. */

@@ -13,4 +13,16 @@
         <item name="android:windowLayoutInDisplayCutoutMode">always</item>
         <item name="android:windowAnimationStyle">@null</item>
     </style>
+
+    <!-- Settings draws its own iOS-style chrome; colours are set in code for light and dark. -->
+    <style name="Theme.Glassgate.Settings" parent="android:Theme.DeviceDefault.DayNight">
+        <item name="android:windowActionBar">false</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:enforceNavigationBarContrast">false</item>
+        <item name="android:enforceStatusBarContrast">false</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">always</item>
+    </style>
 </resources>
