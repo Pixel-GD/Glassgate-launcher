@@ -9,7 +9,6 @@ import android.graphics.Color
 import android.graphics.RenderEffect
 import android.graphics.Shader
 import android.graphics.drawable.ColorDrawable
-import android.os.Build
 import android.text.Editable
 import android.text.InputType
 import android.text.TextWatcher
@@ -82,7 +81,7 @@ class SpotlightView private constructor(private val activity: LauncherActivity) 
     private val spring = Spring(Spring.STIFF_SNAP, Spring.DAMP_SNAP) { applyProgress(it) }
     private var closing = false
     private var savedSoftInputMode = 0
-    private var backCallback: Any? = null
+    private val backCallback = OnBackInvokedCallback { close() }
 
     private var results: SpotlightResults? = null
     private var contacts: List<ContactHit> = emptyList()
@@ -199,11 +198,7 @@ class SpotlightView private constructor(private val activity: LauncherActivity) 
         // Edge to edge: the keyboard arrives as insets, which we animate the bar with.
         @Suppress("DEPRECATION")
         activity.window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
-        if (Build.VERSION.SDK_INT >= 33) {
-            val cb = OnBackInvokedCallback { close() }
-            activity.onBackInvokedDispatcher.registerOnBackInvokedCallback(OnBackInvokedDispatcher.PRIORITY_DEFAULT, cb)
-            backCallback = cb
-        }
+        activity.onBackInvokedDispatcher.registerOnBackInvokedCallback(OnBackInvokedDispatcher.PRIORITY_DEFAULT, backCallback)
         requestApplyInsets()
         spring.animateTo(1f)
         post { focusField() }
@@ -213,10 +208,7 @@ class SpotlightView private constructor(private val activity: LauncherActivity) 
         launcher.apps.removeListener(this)
         hideKeyboard()
         activity.window.setSoftInputMode(savedSoftInputMode)
-        if (Build.VERSION.SDK_INT >= 33) {
-            (backCallback as? OnBackInvokedCallback)?.let { activity.onBackInvokedDispatcher.unregisterOnBackInvokedCallback(it) }
-        }
-        backCallback = null
+        activity.onBackInvokedDispatcher.unregisterOnBackInvokedCallback(backCallback)
         spring.cancel()
         activity.home.setRenderEffect(null)
         contactsGen++
@@ -483,8 +475,7 @@ class SpotlightView private constructor(private val activity: LauncherActivity) 
         val cm = activity.getSystemService(ClipboardManager::class.java)
         cm?.setPrimaryClip(ClipData.newPlainText("Result", value))
         field.tick()
-        // Android 13+ shows its own clipboard confirmation.
-        if (Build.VERSION.SDK_INT < 33) Toast.makeText(activity, "Copied $value", Toast.LENGTH_SHORT).show()
+        // Android 13+ shows its own clipboard confirmation, so no toast.
     }
 
     /** After launching something: vanish at once, so returning home shows the home screen. */
