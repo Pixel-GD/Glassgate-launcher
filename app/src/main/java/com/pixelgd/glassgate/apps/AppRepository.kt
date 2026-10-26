@@ -7,6 +7,7 @@ import android.graphics.Rect
 import android.os.UserHandle
 import android.os.UserManager
 import android.view.View
+import com.pixelgd.glassgate.LauncherActivity
 import com.pixelgd.glassgate.util.Main
 import java.text.Collator
 import java.util.concurrent.Executors
@@ -69,7 +70,8 @@ class AppRepository(private val context: Context) {
                 if (userManager.isQuietModeEnabled(user)) continue
                 val serial = userManager.getSerialNumberForUser(user)
                 for (info in launcherApps.getActivityList(null, user)) {
-                    if (info.componentName.packageName == context.packageName) continue
+                    // Glassgate's own Settings icon belongs on the home screen; the launcher itself doesn't.
+                    if (info.componentName.className == LauncherActivity::class.java.name) continue
                     entries += AppEntry(info, if (serial == selfSerial) 0L else serial)
                 }
             }

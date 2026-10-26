@@ -92,7 +92,9 @@ class GlassDrawable(private val host: View, var style: GlassStyle) : Drawable() 
         val h = b.height()
         val radius = minOf(style.cornerRadius * density, minOf(w, h) / 2f)
         val dark = host.context.isDarkMode
-        val tintAlpha = (if (dark) style.darkTint else style.lightTint)
+        // Settings > Liquid Glass: 0.5 is the stock look, lower is clearer, higher more frosted.
+        val intensity = launcher.prefs.glassIntensity
+        val tintAlpha = ((if (dark) style.darkTint else style.lightTint) * (0.3f + intensity * 1.4f)).coerceAtMost(0.85f)
         val tintColor = if (dark) Color.BLACK else Color.WHITE
         val backdrop = launcher.wallpaper.current
         val s = shader
@@ -115,7 +117,7 @@ class GlassDrawable(private val host: View, var style: GlassStyle) : Drawable() 
             s.setFloatUniform("tint", Color.red(tintColor) / 255f, Color.green(tintColor) / 255f,
                 Color.blue(tintColor) / 255f, tintAlpha)
             s.setFloatUniform("sheen", style.sheen * (if (dark) 0.5f else 1f))
-            val blurPx = style.blur * density * progress
+            val blurPx = style.blur * density * progress * (0.6f + intensity * 0.8f)
             val lens = RenderEffect.createRuntimeShaderEffect(s, "content")
             node.setRenderEffect(
                 if (blurPx > 0.5f) {

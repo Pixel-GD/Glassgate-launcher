@@ -13,6 +13,7 @@ import android.view.MotionEvent
 import android.view.View
 import com.pixelgd.glassgate.Launcher
 import com.pixelgd.glassgate.apps.AppEntry
+import com.pixelgd.glassgate.badges.BadgeDrawer
 import com.pixelgd.glassgate.util.Main
 import com.pixelgd.glassgate.util.Spring
 import com.pixelgd.glassgate.util.dp
@@ -65,6 +66,7 @@ open class AppIconView(
         isClickable = true
         isLongClickable = true
         isHapticFeedbackEnabled = true
+        BadgeDrawer.attach(this)
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {

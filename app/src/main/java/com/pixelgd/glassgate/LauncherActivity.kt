@@ -5,14 +5,17 @@ import android.content.Intent
 import android.content.res.Configuration
 import android.os.Bundle
 import android.view.View
+import android.view.ViewGroup
 import android.view.WindowInsetsController
 import android.window.OnBackInvokedDispatcher
 import android.widget.FrameLayout
 import com.pixelgd.glassgate.apps.AppEntry
 import com.pixelgd.glassgate.edit.EditMode
 import com.pixelgd.glassgate.folders.FolderView
+import com.pixelgd.glassgate.glass.WallpaperSource
 import com.pixelgd.glassgate.home.HomeActions
 import com.pixelgd.glassgate.home.HomeView
+import com.pixelgd.glassgate.icons.IconStyle
 import com.pixelgd.glassgate.layout.HomeItem
 import com.pixelgd.glassgate.menu.ContextMenu
 import com.pixelgd.glassgate.widgets.WidgetBinder
@@ -39,6 +42,13 @@ class LauncherActivity : Activity(), HomeActions {
 
     /** Jiggle mode (module: edit). */
     val editMode by lazy { EditMode(this).apply { onAddWidget = { WidgetPicker.show(this@LauncherActivity) } } }
+    private var resumed = false
+    private var settingsDirty = false
+    private val prefsListener = Prefs.Listener { settingsChanged() }
+    // Tinted icons take their colour from the wallpaper.
+    private val wallpaperListener = WallpaperSource.Listener {
+        if (launcher.prefs.iconStyle == IconStyle.TINTED) settingsChanged()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -52,6 +62,8 @@ class LauncherActivity : Activity(), HomeActions {
         root.addView(overlay, FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
         setContentView(root)
         updateSystemBars()
+        launcher.prefs.addListener(prefsListener)
+        launcher.wallpaper.addListener(wallpaperListener)
         // With enableOnBackInvokedCallback, onBackPressed isn't called on Android 13+.
         // Back closes the top overlay only (e.g. Edit Pages, then jiggle mode).
         onBackInvokedDispatcher.registerOnBackInvokedCallback(OnBackInvokedDispatcher.PRIORITY_DEFAULT) {
@@ -78,14 +90,42 @@ class LauncherActivity : Activity(), HomeActions {
         }
     }
 
+    override fun onDestroy() {
+        launcher.prefs.removeListener(prefsListener)
+        launcher.wallpaper.removeListener(wallpaperListener)
+        super.onDestroy()
+    }
+
     override fun onResume() {
         super.onResume()
+        resumed = true
+        if (settingsDirty) applySettings()
         launcher.tilt.start()
     }
 
     override fun onPause() {
+        resumed = false
         launcher.tilt.stop()
         super.onPause()
+    }
+
+    /** Settings changed (usually from the Settings screen): rebuild now, or when we're back. */
+    private fun settingsChanged() {
+        settingsDirty = true
+        if (resumed) applySettings()
+    }
+
+    private fun applySettings() {
+        settingsDirty = false
+        home.rebuild()
+        invalidateAll(home)
+    }
+
+    /** Glass backgrounds keep their last frame until redrawn. */
+    private fun invalidateAll(v: View) {
+        v.invalidate()
+        v.background?.invalidateSelf()
+        if (v is ViewGroup) for (i in 0 until v.childCount) invalidateAll(v.getChildAt(i))
     }
 
     /** Home pressed while already home: close any overlay, else go to page one. */
