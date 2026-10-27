@@ -29,6 +29,18 @@ class AppRepository(private val context: Context) {
 
     @Volatile private var byKey: Map<String, AppEntry> = emptyMap()
     @Volatile private var sorted: List<AppEntry> = emptyList()
+    @Volatile private var hiddenSorted: List<AppEntry> = emptyList()
+
+    /**
+     * Keys of apps hidden behind Face ID (iOS 18 "Hide and Require Face ID"). They vanish from
+     * the home screen, App Library and Search; only Settings > Hidden Apps lists them.
+     */
+    var hidden: Set<String> = emptySet()
+        set(value) {
+            if (field == value) return
+            field = value
+            reload()
+        }
     var isLoaded = false
         private set
 
@@ -47,8 +59,14 @@ class AppRepository(private val context: Context) {
         reload()
     }
 
-    /** All apps, sorted A to Z by label. */
+    /** All apps, sorted A to Z by label, without hidden ones. */
     val all: List<AppEntry> get() = sorted
+
+    /** Hidden apps, A to Z, for Settings > Hidden Apps. */
+    val hiddenApps: List<AppEntry> get() = hiddenSorted
+
+    /** Every app the system knows about, hidden ones included (for Settings pickers). */
+    val everything: List<AppEntry> get() = (sorted + hiddenSorted).sortedWith { a, b -> Collator.getInstance().compare(a.label, b.label) }
 
     operator fun get(key: String): AppEntry? = byKey[key]
 
@@ -76,20 +94,39 @@ class AppRepository(private val context: Context) {
                 }
             }
             entries.sortWith { a, b -> collator.compare(a.label, b.label) }
-            val map = entries.associateBy { it.key }
+            val hide = hidden
+            val (secret, shown) = entries.partition { it.key in hide }
+            val map = shown.associateBy { it.key }
             Main.post {
                 byKey = map
-                sorted = entries
+                sorted = shown
+                hiddenSorted = secret
                 isLoaded = true
-                listeners.toList().forEach { it.onAppsChanged(entries) }
+                listeners.toList().forEach { it.onAppsChanged(shown) }
             }
         }
     }
 
-    /** Launches [app], zooming out of [source] like iOS when a view is given. */
+    /**
+     * Launches [app], zooming out of [source] like iOS when a view is given. Locked apps ask
+     * for the fingerprint, face or PIN first.
+     */
     fun launch(app: AppEntry, source: View? = null) {
+        val prefs = com.pixelgd.glassgate.Launcher.of(context).prefs
+        if (app.key in prefs.lockedApps || app.key in prefs.hiddenApps) {
+            AppLock.authenticate(source?.context ?: context, app.label) { start(app, source, prefs.reduceMotion) }
+        } else {
+            start(app, source, prefs.reduceMotion)
+        }
+    }
+
+    private fun start(app: AppEntry, source: View?, reduceMotion: Boolean) {
         val bounds: Rect?
-        val opts = if (source != null) {
+        val opts = if (source != null && reduceMotion) {
+            // Reduce Motion swaps the zoom for a cross-fade, as on iOS.
+            bounds = null
+            ActivityOptions.makeCustomAnimation(context, android.R.anim.fade_in, android.R.anim.fade_out).toBundle()
+        } else if (source != null) {
             val loc = IntArray(2)
             source.getLocationOnScreen(loc)
             bounds = Rect(loc[0], loc[1], loc[0] + source.width, loc[1] + source.height)

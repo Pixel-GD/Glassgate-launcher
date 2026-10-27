@@ -74,3 +74,29 @@ object Removal {
         }
     }
 }
+
+/**
+ * iOS 18's "Require Face ID" for an app: verify first, then choose to lock it in place or
+ * hide it in Settings > Hidden Apps.
+ */
+object AppLocking {
+
+    fun offer(activity: LauncherActivity, app: AppEntry) {
+        val prefs = Launcher.of(activity).prefs
+        if (app.key in prefs.lockedApps) {
+            com.pixelgd.glassgate.apps.AppLock.authenticate(activity, app.label) {
+                prefs.lockedApps = prefs.lockedApps - app.key
+            }
+            return
+        }
+        com.pixelgd.glassgate.apps.AppLock.authenticate(activity, app.label) {
+            GlassAlert.show(
+                activity, "Require Face ID for “${app.label}”?",
+                "Opening it will need your face, fingerprint or screen lock. Hidden apps also leave the Home Screen, App Library and Search, and are listed in Settings › Hidden Apps.",
+                GlassAlert.Button("Require Face ID") { prefs.lockedApps = prefs.lockedApps + app.key },
+                GlassAlert.Button("Hide and Require Face ID") { prefs.hiddenApps = prefs.hiddenApps + app.key },
+                GlassAlert.Button("Cancel", cancel = true),
+            )
+        }
+    }
+}

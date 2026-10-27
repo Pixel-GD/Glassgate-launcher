@@ -74,10 +74,11 @@ class IconStylePicker(context: Context, private val colors: IosColors) : LinearL
     fun refresh() {
         val size = context.dpi(52f)
         val tint = launcher.icons.tint
+        val dark = launcher.prefs.iconsDark()
         WORKER.execute {
             val icon = runCatching { sampleIcon() }.getOrNull() ?: return@execute
             val bitmaps = IconStyle.entries.associateWith {
-                runCatching { IconRenderer.render(icon.constantState?.newDrawable()?.mutate() ?: icon, size, it, tint) }.getOrNull()
+                runCatching { IconRenderer.render(icon.constantState?.newDrawable()?.mutate() ?: icon, size, it, tint, dark) }.getOrNull()
             }
             Main.post { tiles.forEach { t -> t.icon = bitmaps[t.style]; t.invalidate() } }
         }
@@ -123,7 +124,7 @@ class IconStylePicker(context: Context, private val colors: IosColors) : LinearL
             val inset = context.dp(5f)
             rect.set(inset, inset, width - inset, swatchH - inset)
             drawBackdrop(canvas, launcher.wallpaper.current, rect, path, context.dp(14f))
-            if (style == IconStyle.DARK) {
+            if (style == IconStyle.DARK || launcher.prefs.iconsDark()) {
                 // iOS dims the wallpaper in Dark mode too.
                 canvas.save()
                 canvas.clipPath(path)

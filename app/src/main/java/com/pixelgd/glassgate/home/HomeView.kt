@@ -3,25 +3,44 @@ package com.pixelgd.glassgate.home
 import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.RenderEffect
+import android.graphics.Shader
 import android.view.Gravity
 import android.view.View
 import android.view.WindowInsets
 import android.widget.FrameLayout
 import com.pixelgd.glassgate.Launcher
+import com.pixelgd.glassgate.Prefs
 import com.pixelgd.glassgate.apps.AppRepository
 import com.pixelgd.glassgate.glass.Backdrop
 import com.pixelgd.glassgate.glass.WallpaperSource
 import com.pixelgd.glassgate.layout.HomeLayout
 import com.pixelgd.glassgate.layout.LayoutStore
+import com.pixelgd.glassgate.util.StatusBar
+import com.pixelgd.glassgate.util.dp
 import com.pixelgd.glassgate.util.dpi
+import com.pixelgd.glassgate.util.isDarkMode
 
 object HomeViewConfig {
     const val DOCK_SLOTS = 4
 }
 
-/** Draws the launcher's own wallpaper (when it has one) full screen. */
+/**
+ * Draws the launcher's own wallpaper (when it has one) full screen, with the iOS Home Screen
+ * wallpaper options: legibility blur, and dimming while the system is dark.
+ */
 class WallpaperView(context: Context) : View(context), WallpaperSource.Listener {
     private val launcher = Launcher.of(context)
+
+    /** Re-reads the blur and dim settings. */
+    fun applyPrefs() {
+        val prefs = launcher.prefs
+        val r = context.dp(36f)
+        setRenderEffect(if (prefs.blurWallpaper && launcher.wallpaper.current != null)
+            RenderEffect.createBlurEffect(r, r, Shader.TileMode.CLAMP) else null)
+        invalidate()
+    }
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
@@ -37,6 +56,8 @@ class WallpaperView(context: Context) : View(context), WallpaperSource.Listener 
 
     override fun onDraw(canvas: Canvas) {
         launcher.wallpaper.current?.draw(canvas, width, height)
+        // Also dims the system wallpaper when it shows through instead.
+        if (launcher.prefs.dimWallpaperInDark && context.isDarkMode) canvas.drawColor(Color.argb(64, 0, 0, 0))
     }
 }
 
@@ -67,9 +88,10 @@ class HomeView(context: Context, private val actions: HomeActions) : FrameLayout
         addView(dock, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT, Gravity.BOTTOM))
 
         pages.addScrollListener(searchPill)
-        pages.onSwipeDown = { actions.openSpotlight() }
+        pages.onSwipeDown = { x -> onSwipeDown(x) }
         pages.onLongPressEmpty = { actions.enterEditMode() }
         searchPill.setOnClickListener { actions.openSpotlight() }
+        searchPill.onScrub = { page -> pages.snapToPage(page) }
 
         setOnApplyWindowInsetsListener { _, insets ->
             val bars = insets.getInsets(WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout())
@@ -96,6 +118,17 @@ class HomeView(context: Context, private val actions: HomeActions) : FrameLayout
     override fun onLayoutChanged(layout: HomeLayout) = rebuild()
     override fun onAppsChanged(apps: List<com.pixelgd.glassgate.apps.AppEntry>) = rebuild()
 
+    /** Settings > Gestures > Swipe Down. iOS always opens Search. */
+    private fun onSwipeDown(x: Float) {
+        when (launcher.prefs.swipeDown) {
+            Prefs.SwipeAction.SEARCH -> actions.openSpotlight()
+            Prefs.SwipeAction.NOTIFICATIONS -> StatusBar.expandNotifications(context)
+            // One UI's split panel, and iOS's Notification Center / Control Center split.
+            Prefs.SwipeAction.SPLIT -> if (x < 0.5f) StatusBar.expandNotifications(context) else StatusBar.expandQuickSettings(context)
+            Prefs.SwipeAction.NOTHING -> Unit
+        }
+    }
+
     /** Re-creates pages and dock from the saved layout and current settings. */
     fun rebuild() {
         val layout = launcher.layout.layout
@@ -111,8 +144,11 @@ class HomeView(context: Context, private val actions: HomeActions) : FrameLayout
                 bind(page, iconPx, prefs.showLabels)
             })
         }
-        actions.createTrailingPage()?.let { pages.addView(it) }
+        if (prefs.showAppLibrary) actions.createTrailingPage()?.let { pages.addView(it) }
         pages.snapToPage(keep, animate = false)
+        searchPill.dotsOnly = !prefs.showSearchPill
+        searchPill.setPageCount(pages.childCount)
+        wallpaper.applyPrefs()
 
         dock.visibility = if (prefs.showDock) VISIBLE else GONE
         dock.bind(layout.dock, iconPx)

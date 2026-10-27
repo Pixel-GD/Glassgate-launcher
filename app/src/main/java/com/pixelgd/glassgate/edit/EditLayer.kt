@@ -16,6 +16,7 @@ import android.widget.FrameLayout
 import com.pixelgd.glassgate.DismissibleOverlay
 import com.pixelgd.glassgate.Launcher
 import com.pixelgd.glassgate.LauncherActivity
+import com.pixelgd.glassgate.settings.SettingsActivity
 import com.pixelgd.glassgate.folders.Folders
 import com.pixelgd.glassgate.glass.GlassDrawable
 import com.pixelgd.glassgate.glass.GlassStyle
@@ -199,7 +200,14 @@ class EditLayer(
         mode.onAddWidget?.let { add -> items += MenuItem("Add Widget", Glyph.ADD_WIDGET) { add() } }
         items += MenuItem("Customize", Glyph.CUSTOMIZE) { CustomizeSheet.open(activity) }
         items += MenuItem("Edit Pages", Glyph.PAGES) { PageOverview.open(activity) }
-        ContextMenu.showActions(activity, editButton, listOf(items))
+        items += MenuItem("Edit Wallpaper", Glyph.WALLPAPER) { SettingsActivity.open(activity, SettingsActivity.PAGE_WALLPAPER) }
+        // iOS 27: Undo and Redo for home screen edits.
+        val history = ArrayList<MenuItem>()
+        val store = launcher.layout
+        if (store.canUndo) history += MenuItem("Undo", Glyph.UNDO) { store.undo() }
+        if (store.canRedo) history += MenuItem("Redo", Glyph.REDO) { store.redo() }
+        val more = listOf(MenuItem("Home Screen Settings", Glyph.SETTINGS) { SettingsActivity.open(activity) })
+        ContextMenu.showActions(activity, editButton, listOf(items, history, more).filter { it.isNotEmpty() })
     }
 
     // ---- frame loop ----

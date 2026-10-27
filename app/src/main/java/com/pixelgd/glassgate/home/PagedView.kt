@@ -22,7 +22,8 @@ class PagedView(context: Context) : ViewGroup(context) {
         fun onPageScroll(position: Float, pageCount: Int, isDragging: Boolean)
     }
 
-    var onSwipeDown: (() -> Unit)? = null
+    /** A downward swipe; the argument is where it started across the screen, 0 (left) to 1. */
+    var onSwipeDown: ((Float) -> Unit)? = null
     var onLongPressEmpty: (() -> Unit)? = null
     private val scrollListeners = LinkedHashSet<ScrollListener>()
 
@@ -155,7 +156,7 @@ class PagedView(context: Context) : ViewGroup(context) {
             MotionEvent.ACTION_UP -> {
                 removeCallbacks(longPress)
                 if (verticalGesture) {
-                    if (ev.y - downY > slop * 4) onSwipeDown?.invoke()
+                    if (ev.y - downY > slop * 4) onSwipeDown?.invoke(if (width > 0) downX / width else 0.5f)
                 } else if (dragging) {
                     settle()
                 }

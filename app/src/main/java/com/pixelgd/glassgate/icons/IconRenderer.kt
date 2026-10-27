@@ -20,7 +20,10 @@ import com.pixelgd.glassgate.apps.AppEntry
 import com.pixelgd.glassgate.glass.Squircle
 import com.pixelgd.glassgate.util.withAlpha
 
-/** The four iOS 26 icon appearances. */
+/**
+ * The four iOS 26 icon appearances. Default, Clear and Tinted each have a light and a dark
+ * variant ([IconRenderer.dark]); DARK is Default's dark variant pinned on.
+ */
 enum class IconStyle { DEFAULT, DARK, CLEAR, TINTED }
 
 /**
@@ -38,9 +41,23 @@ class IconRenderer(private val context: Context) {
     var style: IconStyle = IconStyle.DEFAULT
         set(value) { if (field != value) { field = value; clear() } }
 
-    /** Wallpaper accent, used by TINTED. */
+    /** The dark variant of the current style (iOS Light / Dark / Auto). */
+    var dark: Boolean = false
+        set(value) { if (field != value) { field = value; clear() } }
+
+    /** Wallpaper accent or the user's chosen colour, used by TINTED. */
     var tint: Int = Color.rgb(140, 110, 210)
         set(value) { if (field != value) { field = value; if (style == IconStyle.TINTED) clear() } }
+
+    /** Package of an ADW / Nova icon pack, or null for the apps' own icons. */
+    var iconPack: String? = null
+        set(value) {
+            if (field == value) return
+            field = value
+            pack = null
+            clear()
+        }
+    @Volatile private var pack: IconPack? = null
 
     fun clear() = cache.evictAll()
 
@@ -49,16 +66,30 @@ class IconRenderer(private val context: Context) {
     fun render(app: AppEntry, sizePx: Int): Bitmap {
         val key = cacheKey(app, sizePx)
         cache.get(key)?.let { return it }
-        val bmp = render(app.loadRawIcon(density), sizePx, style, tint)
+        val themed = packIcon(app)
+        val bmp = if (themed != null) renderPacked(themed, sizePx, style, tint, dark)
+            else render(app.loadRawIcon(density), sizePx, style, tint, dark)
         cache.put(key, bmp)
         return bmp
     }
 
-    private fun cacheKey(app: AppEntry, sizePx: Int) = "${app.key}|$sizePx|$style|$tint"
+    /** The icon pack's drawable for [app], when a pack is chosen and it themes that app. */
+    private fun packIcon(app: AppEntry): Drawable? {
+        val pkg = iconPack ?: return null
+        val p = pack?.takeIf { it.packageName == pkg }
+            ?: IconPack.load(context, pkg).also { pack = it }
+            ?: return null
+        return p.iconFor(app.component, density)
+    }
+
+    private fun cacheKey(app: AppEntry, sizePx: Int) = "${app.key}|$sizePx|$style|$dark|$tint|$iconPack"
 
     companion object {
-        /** Renders [icon] into a [size]px squircle in [style]. */
-        fun render(icon: Drawable, size: Int, style: IconStyle, tint: Int): Bitmap {
+        /**
+         * Renders [icon] into a [size]px squircle in [style]; [dark] picks the dark variant
+         * of Default, Clear and Tinted.
+         */
+        fun render(icon: Drawable, size: Int, style: IconStyle, tint: Int, dark: Boolean = false): Bitmap {
             val bmp = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
             val c = Canvas(bmp)
             val s = size.toFloat()
@@ -67,7 +98,8 @@ class IconRenderer(private val context: Context) {
             c.clipPath(mask)
 
             val adaptive = icon as? AdaptiveIconDrawable
-            when (style) {
+            val look = if (style == IconStyle.DEFAULT && dark) IconStyle.DARK else style
+            when (look) {
                 IconStyle.DEFAULT -> {
                     if (adaptive != null) {
                         drawLayer(c, adaptive.background, size)
@@ -88,14 +120,28 @@ class IconRenderer(private val context: Context) {
                     }
                     topHighlight(c, s, 0.08f)
                 }
-                IconStyle.TINTED -> {
+                IconStyle.TINTED -> if (dark) {
+                    // Dark: a deep shade of the colour with a light glyph.
                     c.drawPaint(Paint().apply {
                         shader = LinearGradient(0f, 0f, 0f, s, darken(tint, 0.55f), darken(tint, 0.35f), Shader.TileMode.CLAMP)
                     })
                     drawGlyph(c, icon, adaptive, size, lighten(tint, 0.75f))
                     topHighlight(c, s, 0.10f)
+                } else {
+                    // Light: the colour itself with a white glyph.
+                    c.drawPaint(Paint().apply {
+                        shader = LinearGradient(0f, 0f, 0f, s, lighten(tint, 0.18f), darken(tint, 0.85f), Shader.TileMode.CLAMP)
+                    })
+                    drawGlyph(c, icon, adaptive, size, Color.WHITE)
+                    topHighlight(c, s, 0.18f)
                 }
-                IconStyle.CLEAR -> {
+                IconStyle.CLEAR -> if (dark) {
+                    // Dark: smoky tinted glass.
+                    c.drawColor(Color.BLACK.withAlpha(0.32f))
+                    drawGlyph(c, icon, adaptive, size, Color.WHITE.withAlpha(0.82f))
+                    topHighlight(c, s, 0.12f)
+                } else {
+                    // Light: frosted glass.
                     c.drawColor(Color.WHITE.withAlpha(0.18f))
                     drawGlyph(c, icon, adaptive, size, Color.WHITE.withAlpha(0.92f))
                     topHighlight(c, s, 0.22f)
@@ -112,6 +158,25 @@ class IconRenderer(private val context: Context) {
             }
             val inset = Squircle.icon(s - strokeInset(s) * 2, s - strokeInset(s) * 2, Path(), left = strokeInset(s), top = strokeInset(s))
             c.drawPath(inset, rim)
+            return bmp
+        }
+
+        /**
+         * An icon pack's icon: drawn full bleed (packs are designed edge to edge) in Default,
+         * and turned into a glyph for the other looks like any legacy icon.
+         */
+        fun renderPacked(icon: Drawable, size: Int, style: IconStyle, tint: Int, dark: Boolean): Bitmap {
+            if (style == IconStyle.CLEAR || style == IconStyle.TINTED) return render(icon, size, style, tint, dark)
+            val bmp = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+            val c = Canvas(bmp)
+            val s = size.toFloat()
+            c.save()
+            c.clipPath(Squircle.icon(s, s))
+            icon.setBounds(0, 0, size, size)
+            icon.draw(c)
+            if (style == IconStyle.DARK || dark) c.drawColor(Color.BLACK.withAlpha(0.28f))
+            topHighlight(c, s, 0.12f)
+            c.restore()
             return bmp
         }
 

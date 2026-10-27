@@ -296,6 +296,11 @@ class ContextMenu private constructor(
                     launcher.layout.edit { l -> l.placeFirstFree(HomeItem.App(app.key)) }
                 }
             }
+            val locked = app.key in launcher.prefs.lockedApps
+            actions += MenuItem(if (locked) "Don't Require Face ID" else "Require Face ID", Glyph.LOCK, afterClose = true) {
+                AppLocking.offer(activity, app)
+            }
+            actions += MenuItem("Share App", Glyph.SHARE) { shareApp(activity, app) }
             actions += MenuItem("App Info", Glyph.INFO) { launcher.apps.openAppInfo(app, source) }
             if (onHome) actions += MenuItem("Remove App", Glyph.REMOVE, destructive = true) { Removal.confirmApp(activity, app, item) }
             else if (Removal.canUninstall(app)) {
@@ -320,6 +325,16 @@ class ContextMenu private constructor(
             ),
             listOf(MenuItem("Remove Widget", Glyph.REMOVE, destructive = true) { Widgets.of(activity).remove(widget) }),
         )
+
+        /** iOS "Share App": the store link through the share sheet. */
+        private fun shareApp(activity: LauncherActivity, app: AppEntry) {
+            val link = "https://play.google.com/store/apps/details?id=${app.packageName}"
+            val send = android.content.Intent(android.content.Intent.ACTION_SEND)
+                .setType("text/plain")
+                .putExtra(android.content.Intent.EXTRA_TEXT, link)
+                .putExtra(android.content.Intent.EXTRA_TITLE, app.label)
+            runCatching { activity.startActivity(android.content.Intent.createChooser(send, null)) }
+        }
 
         /** iOS shows at most four quick actions. */
         private fun shortcuts(activity: LauncherActivity, app: AppEntry): List<ShortcutInfo> =

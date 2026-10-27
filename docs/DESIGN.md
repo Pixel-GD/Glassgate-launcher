@@ -43,7 +43,11 @@ iOS 26 / iOS 27 home screen. Package `com.pixelgd.glassgate`, Kotlin, minSdk 34 
    "Edit Home Screen", "Remove App", "App Info".
 8. **Notification badges**: red dot with count via NotificationListenerService (optional
    permission).
-9. **Settings**: icon style, grid size (4×6 default, 5×6), label on/off, dock on/off, wallpaper tint.
+9. **Settings**: an iOS Settings-style app (root list with coloured icons and search, pushed
+   pages, back swipe). Pages: Wallpaper, Home Screen & App Library, App Icons, Liquid Glass,
+   Gestures, Notifications, Face ID & Privacy, Accessibility, Sounds & Haptics, General.
+   Reachable from its own icon and from jiggle mode's Edit menu. See
+   [IOS_PARITY.md](IOS_PARITY.md) for what matches iOS and what Android can't do.
 
 ## Out of scope for v1
 Lock screen, Control Center, status bar (handled by Good Lock modules in this project),

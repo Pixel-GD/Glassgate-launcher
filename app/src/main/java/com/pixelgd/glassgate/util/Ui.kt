@@ -26,12 +26,16 @@ fun Int.withAlpha(alpha: Float): Int =
 
 fun lerp(a: Float, b: Float, t: Float): Float = a + (b - a) * t
 
+/** Haptics follow Settings > Sounds & Haptics. */
+private val View.hapticsOn: Boolean
+    get() = runCatching { (context.applicationContext as com.pixelgd.glassgate.GlassgateApp).launcher.prefs.haptics }.getOrDefault(true)
+
 fun View.tick() {
-    performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+    if (hapticsOn) performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
 }
 
 fun View.thud() {
-    performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+    if (hapticsOn) performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
 }
 
 object Main {

@@ -5,6 +5,8 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Typeface
+import android.annotation.SuppressLint
+import android.view.MotionEvent
 import android.view.View
 import com.pixelgd.glassgate.R
 import com.pixelgd.glassgate.glass.GlassDrawable
@@ -12,11 +14,15 @@ import com.pixelgd.glassgate.glass.GlassStyle
 import com.pixelgd.glassgate.util.Spring
 import com.pixelgd.glassgate.util.dp
 import com.pixelgd.glassgate.util.sp
+import com.pixelgd.glassgate.util.tick
 import com.pixelgd.glassgate.util.withAlpha
 
 /**
  * The iOS 26 glass "Search" pill above the dock. While pages are being swiped it turns
  * into page dots, then settles back to the magnifier and label.
+ *
+ * Touch and hold, then slide, to scrub through pages like the iOS page dots. With Search off
+ * the Home Screen ([dotsOnly]) it is just the dots, and any horizontal slide scrubs.
  */
 class SearchPillView(context: Context) : View(context), PagedView.ScrollListener {
 
@@ -37,29 +43,116 @@ class SearchPillView(context: Context) : View(context), PagedView.ScrollListener
     private var pageCount = 1
     private var dotsAmount = 0f
     private val dotsSpring = Spring(Spring.STIFF_UI, 1f) { v -> dotsAmount = v; invalidate() }
-    private val settle = Runnable { dotsSpring.animateTo(0f) }
+    private val settle = Runnable { if (!dotsOnly && !scrubbing) dotsSpring.animateTo(0f) }
+    private val glass = GlassDrawable(this, GlassStyle.PILL)
+
+    /** Called with a page index while the user scrubs. */
+    var onScrub: ((Int) -> Unit)? = null
+
+    /** iOS with "Show on Home Screen" off for Search: page dots only, no glass until touched. */
+    var dotsOnly = false
+        set(value) {
+            field = value
+            contentDescription = if (value) "Page dots" else label
+            dotsSpring.snapTo(if (value) 1f else 0f)
+            glass.progress = if (value) 0f else 1f
+            requestLayout()
+        }
+
+    private var scrubbing = false
+    private var downX = 0f
+    private val scrubScale = Spring(Spring.STIFF_UI, Spring.DAMP_UI) { v ->
+        scaleX = v; scaleY = v
+        if (dotsOnly) glass.progress = (v - 1f) / 0.12f
+    }.also { it.snapTo(1f) }
+    private val startScrub = Runnable { beginScrub() }
 
     init {
-        background = GlassDrawable(this, GlassStyle.PILL)
+        background = glass
         isClickable = true
         contentDescription = label
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         val textW = textPaint.measureText(label)
-        val w = (context.dp(18f) * 2 + context.dp(16f) + context.dp(6f) + textW).toInt()
-        setMeasuredDimension(w, context.dp(34f).toInt())
+        val searchW = context.dp(18f) * 2 + context.dp(16f) + context.dp(6f) + textW
+        val dotsW = context.dp(18f) * 2 + pageCount * context.dp(7f) + (pageCount - 1).coerceAtLeast(0) * context.dp(9f)
+        val w = if (dotsOnly) dotsW else maxOf(searchW, dotsW)
+        setMeasuredDimension(w.toInt(), context.dp(34f).toInt())
     }
 
     override fun onPageScroll(position: Float, pageCount: Int, isDragging: Boolean) {
         this.position = position
-        this.pageCount = pageCount
+        if (this.pageCount != pageCount) {
+            this.pageCount = pageCount
+            requestLayout()
+        }
         removeCallbacks(settle)
         if (pageCount > 1) {
             dotsSpring.animateTo(1f)
             postDelayed(settle, 900)
         }
         invalidate()
+    }
+
+    fun setPageCount(n: Int) {
+        if (pageCount == n) return
+        pageCount = n
+        requestLayout()
+        invalidate()
+    }
+
+    // ---- scrubbing ----
+
+    private fun beginScrub() {
+        if (pageCount < 2) return
+        scrubbing = true
+        isPressed = false
+        parent?.requestDisallowInterceptTouchEvent(true)
+        removeCallbacks(settle)
+        dotsSpring.animateTo(1f)
+        scrubScale.animateTo(1.12f)
+        tick()
+    }
+
+    private fun scrubTo(rawX: Float) {
+        // Like iOS, the whole screen width maps onto the pages, not just the pill.
+        val screenW = rootView.width.coerceAtLeast(1)
+        val page = (rawX / screenW * pageCount).toInt().coerceIn(0, pageCount - 1)
+        if (page != Math.round(position)) {
+            tick()
+            onScrub?.invoke(page)
+        }
+    }
+
+    private fun endScrub() {
+        scrubbing = false
+        scrubScale.animateTo(1f)
+        removeCallbacks(settle)
+        postDelayed(settle, 600)
+    }
+
+    @SuppressLint("ClickableViewAccessibility")
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                downX = event.x
+                postDelayed(startScrub, if (dotsOnly) 120L else 300L)
+            }
+            MotionEvent.ACTION_MOVE -> {
+                if (!scrubbing && dotsOnly && kotlin.math.abs(event.x - downX) > context.dp(6f)) {
+                    removeCallbacks(startScrub)
+                    beginScrub()
+                }
+                if (scrubbing) { scrubTo(event.rawX); return true }
+            }
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                removeCallbacks(startScrub)
+                if (scrubbing) { endScrub(); return true }
+                if (dotsOnly) return true
+            }
+        }
+        return super.onTouchEvent(event)
     }
 
     override fun onDraw(canvas: Canvas) {

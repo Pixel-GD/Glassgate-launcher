@@ -73,6 +73,20 @@ sealed class Backdrop {
         }
     }
 
+    /** iOS 26's "Color" wallpaper: one colour as a soft top-to-bottom gradient. */
+    class Solid(val color: Int, private val dark: Boolean) : Backdrop() {
+        private val paint = Paint()
+        override val accent: Int = color
+
+        override fun draw(canvas: Canvas, width: Int, height: Int) {
+            val hsv = FloatArray(3).also { Color.colorToHSV(color, it) }
+            val top = Color.HSVToColor(floatArrayOf(hsv[0], hsv[1] * 0.75f, (hsv[2] * if (dark) 0.62f else 1.08f).coerceAtMost(1f)))
+            val bottom = Color.HSVToColor(floatArrayOf(hsv[0], (hsv[1] * 1.1f).coerceAtMost(1f), hsv[2] * if (dark) 0.28f else 0.72f))
+            paint.shader = android.graphics.LinearGradient(0f, 0f, 0f, height.toFloat(), top, bottom, android.graphics.Shader.TileMode.CLAMP)
+            canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
+        }
+    }
+
     companion object {
         private const val TAG = "Backdrop"
 
@@ -116,6 +130,14 @@ class WallpaperSource(private val context: Context) {
     fun addListener(l: Listener) { listeners += l }
     fun removeListener(l: Listener) { listeners -= l }
 
+    /** The colour for [MODE_COLOR]. */
+    var color: Int
+        get() = prefs.getInt("color", Color.rgb(64, 96, 200))
+        set(value) {
+            prefs.edit().putInt("color", value).putString("mode", MODE_COLOR).apply()
+            refresh()
+        }
+
     /** Saves a photo the user picked and switches to it. */
     fun setPhoto(bitmap: Bitmap) {
         photoFile.outputStream().use { bitmap.compress(Bitmap.CompressFormat.JPEG, 92, it) }
@@ -128,6 +150,7 @@ class WallpaperSource(private val context: Context) {
             MODE_PHOTO -> BitmapFactory.decodeFile(photoFile.path)?.let { Backdrop.Photo(it) }
                 ?: Backdrop.Celosia(context.isDarkMode)
             MODE_SYSTEM -> null
+            MODE_COLOR -> Backdrop.Solid(color, context.isDarkMode)
             else -> Backdrop.Celosia(context.isDarkMode)
         }
         listeners.toList().forEach { it.onBackdropChanged(current) }
@@ -137,5 +160,6 @@ class WallpaperSource(private val context: Context) {
         const val MODE_CELOSIA = "celosia"
         const val MODE_PHOTO = "photo"
         const val MODE_SYSTEM = "system"
+        const val MODE_COLOR = "color"
     }
 }

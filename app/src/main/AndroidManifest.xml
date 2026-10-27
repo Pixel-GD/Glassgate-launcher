@@ -11,6 +11,20 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <!-- Optional: Spotlight asks for it before showing contact results. -->
     <uses-permission android:name="android.permission.READ_CONTACTS" />
+    <!-- Locked and Hidden apps ask for face, fingerprint or the screen lock. -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+    <!-- Optional swipe-down gesture that pulls down notifications or quick settings. -->
+    <uses-permission android:name="android.permission.EXPAND_STATUS_BAR" />
+
+    <!-- Icon packs (ADW / Nova format) for Settings > App Icons > Icon Pack. -->
+    <queries>
+        <intent>
+            <action android:name="org.adw.launcher.THEMES" />
+        </intent>
+        <intent>
+            <action android:name="com.novalauncher.THEME" />
+        </intent>
+    </queries>
 
     <application
         android:name=".GlassgateApp"
@@ -44,6 +58,7 @@
         <activity
             android:name=".settings.SettingsActivity"
             android:exported="true"
+            android:launchMode="singleTask"
             android:label="@string/settings_label"
             android:icon="@mipmap/ic_settings"
             android:taskAffinity="com.pixelgd.glassgate.settings"
