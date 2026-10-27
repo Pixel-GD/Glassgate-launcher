@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Glassgate Plus: the features Play Protect blocks in sideloaded apps. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Spotlight asks for it before showing contact results. -->
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
+
+    <application>
+            <service
+                android:name=".badges.BadgeService"
+                android:exported="true"
+                android:label="@string/badges_label"
+                android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+                <intent-filter>
+                    <action android:name="android.service.notification.NotificationListenerService" />
+                </intent-filter>
+                <meta-data
+                    android:name="android.service.notification.default_filter_types"
+                    android:value="conversations|alerting|silent" />
+            </service>
+    </application>
+</manifest>

@@ -6,7 +6,9 @@ and a live Celosia-style wallpaper.
 
 ## Install
 
-1. Download `glassgate-debug.apk` from the [latest build](../../releases/tag/latest).
+1. Download `glassgate.apk` from the [latest build](../../releases/tag/latest).
+   (`glassgate-plus.apk` adds notification badges and contact search, but Play Protect
+   blocks it unless you choose "Install anyway", because it asks for notification access.)
 2. Open it on your phone and allow installing from your browser or Files app when asked.
 3. Press Home, choose **Glassgate**, then **Always**. On Samsung you can also set it in
    Settings > Apps > Choose default apps > Home app.

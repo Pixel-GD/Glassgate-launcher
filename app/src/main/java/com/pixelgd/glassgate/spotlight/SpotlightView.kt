@@ -1,5 +1,6 @@
 package com.pixelgd.glassgate.spotlight
 
+import com.pixelgd.glassgate.BuildConfig
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.ClipData
@@ -383,7 +384,7 @@ class SpotlightView private constructor(private val activity: LauncherActivity) 
         }
 
         val canReadContacts = SpotlightSearch.canReadContacts(activity)
-        if (contacts.isNotEmpty() || (!canReadContacts && !prefs.getBoolean(KEY_ASKED_CONTACTS, false))) {
+        if (contacts.isNotEmpty() || (BuildConfig.FEATURE_CONTACTS && !canReadContacts && !prefs.getBoolean(KEY_ASKED_CONTACTS, false))) {
             content.addView(sectionHeader(activity, "Contacts", palette))
             val card = card(activity, palette)
             if (contacts.isEmpty()) {

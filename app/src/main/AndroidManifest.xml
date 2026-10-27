@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
     <uses-permission android:name="android.permission.SET_WALLPAPER" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <!-- "Delete App" in the long-press menu and jiggle mode opens the system uninstaller. -->
@@ -9,8 +8,33 @@
     <!-- Weather widget: Open-Meteo forecast for the phone's rough location. -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-    <!-- Optional: Spotlight asks for it before showing contact results. -->
-    <uses-permission android:name="android.permission.READ_CONTACTS" />
+
+    <!-- Which other apps Glassgate can see: launchable apps, widget providers, and the
+         default phone/messages/browser/camera for the first-run dock. Narrower than
+         QUERY_ALL_PACKAGES, which Play Protect weighs against sideloaded apps. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+        <intent>
+            <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.DIAL" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.SENDTO" />
+            <data android:scheme="smsto" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+        <intent>
+            <action android:name="android.media.action.IMAGE_CAPTURE" />
+        </intent>
+    </queries>
 
     <application
         android:name=".GlassgateApp"
@@ -59,17 +83,5 @@
         </activity>
 
         <!-- Notification badges. Off until the user grants notification access. -->
-        <service
-            android:name=".badges.BadgeService"
-            android:exported="true"
-            android:label="@string/badges_label"
-            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
-            <intent-filter>
-                <action android:name="android.service.notification.NotificationListenerService" />
-            </intent-filter>
-            <meta-data
-                android:name="android.service.notification.default_filter_types"
-                android:value="conversations|alerting|silent" />
-        </service>
     </application>
 </manifest>
