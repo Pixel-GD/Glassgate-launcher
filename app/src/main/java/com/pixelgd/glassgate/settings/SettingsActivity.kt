@@ -1,5 +1,6 @@
 package com.pixelgd.glassgate.settings
 
+import com.pixelgd.glassgate.BuildConfig
 import android.app.Activity
 import android.app.role.RoleManager
 import android.content.Context
@@ -160,7 +161,8 @@ class SettingsActivity : Activity() {
         homeScreenSection()
         glassSection()
         wallpaperSection()
-        badgesSection()
+        // Badges need notification access, which only the Plus edition declares.
+        if (BuildConfig.FEATURE_BADGES) badgesSection()
         aboutSection()
     }
 
@@ -304,7 +306,7 @@ class SettingsActivity : Activity() {
     }
 
     private fun refreshStatus() {
-        accessRow.valueView?.text = if (Badges.isAccessGranted(this)) "On" else "Off"
+        if (::accessRow.isInitialized) accessRow.valueView?.text = if (Badges.isAccessGranted(this)) "On" else "Off"
         val isHome = getSystemService(RoleManager::class.java)?.isRoleHeld(RoleManager.ROLE_HOME) == true
         homeRow.valueView?.text = if (isHome) "Glassgate" else "Not Set"
     }

@@ -1,5 +1,6 @@
 package com.pixelgd.glassgate.spotlight
 
+import com.pixelgd.glassgate.BuildConfig
 import android.Manifest
 import android.app.SearchManager
 import android.content.Context
@@ -89,7 +90,8 @@ object SpotlightSearch {
     private val DIACRITICS = Regex("\\p{Mn}+")
     private val SPACES = Regex("\\s+")
 
-    fun canReadContacts(context: Context) =
+    /** Always false in the Standard edition, which doesn't declare READ_CONTACTS. */
+    fun canReadContacts(context: Context) = BuildConfig.FEATURE_CONTACTS &&
         context.checkSelfPermission(Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED
 
     /** Contacts whose name matches [query]. Background thread only. */

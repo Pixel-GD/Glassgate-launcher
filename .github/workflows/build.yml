@@ -26,19 +26,39 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
-      - name: Build debug APK
-        run: ./gradlew --no-daemon assembleDebug
+      # The owner's signing key lives in repository secrets. Without them (e.g. PRs from forks)
+      # the release APKs fall back to the public debug key; see CONTRIBUTING.md.
+      - name: Decode signing key
+        env:
+          KEYSTORE_B64: ${{ secrets.GLASSGATE_KEYSTORE_B64 }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/glassgate.jks"
+            echo "GLASSGATE_KEYSTORE=$RUNNER_TEMP/glassgate.jks" >> "$GITHUB_ENV"
+            echo "Signing with the Glassgate release key"
+          else
+            echo "::warning::GLASSGATE_KEYSTORE_B64 secret not set; release APKs are signed with the public debug key"
+          fi
 
-      - name: Rename APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk glassgate-debug.apk
+      - name: Build release APKs
+        env:
+          GLASSGATE_KEYSTORE_PASSWORD: ${{ secrets.GLASSGATE_KEYSTORE_PASSWORD }}
+        run: ./gradlew --no-daemon assembleStandardRelease assemblePlusRelease
+
+      - name: Rename APKs
+        run: |
+          cp app/build/outputs/apk/standard/release/app-standard-release.apk glassgate.apk
+          cp app/build/outputs/apk/plus/release/app-plus-release.apk glassgate-plus.apk
 
       - uses: actions/upload-artifact@v4
         with:
-          name: glassgate-debug-apk
-          path: glassgate-debug.apk
+          name: glassgate-apks
+          path: |
+            glassgate.apk
+            glassgate-plus.apk
 
       # Every push to main refreshes the "latest" pre-release, so there is always
-      # one stable download link: Releases > latest > glassgate-debug.apk
+      # one stable download link: Releases > latest > glassgate.apk
       - name: Drop previous latest build
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
@@ -54,5 +74,11 @@ jobs:
           prerelease: true
           make_latest: false
           target_commitish: ${{ github.sha }}
-          body: "Debug build of ${{ github.sha }} (run #${{ github.run_number }}). Install glassgate-debug.apk."
-          files: glassgate-debug.apk
+          body: |
+            Build of ${{ github.sha }} (run #${{ github.run_number }}).
+
+            - **glassgate.apk**: install this one. Everything except notification badges and contact search.
+            - **glassgate-plus.apk**: adds badges and contact search. Play Protect blocks it when sideloaded because it asks for notification access; choose "Install anyway" only if you want those.
+          files: |
+            glassgate.apk
+            glassgate-plus.apk
