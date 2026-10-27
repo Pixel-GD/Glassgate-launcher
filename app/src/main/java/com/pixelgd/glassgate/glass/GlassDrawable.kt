@@ -99,8 +99,10 @@ class GlassDrawable(private val host: View, var style: GlassStyle) : Drawable() 
         val tintColor = if (dark) Color.BLACK else Color.WHITE
         val backdrop = launcher.wallpaper.current
         val s = shader
+        // Accessibility > Reduce Transparency: solid grey glass, no refraction.
+        val solid = launcher.prefs.reduceTransparency
 
-        if (backdrop != null && s != null && canvas.isHardwareAccelerated && progress > 0f) {
+        if (!solid && backdrop != null && s != null && canvas.isHardwareAccelerated && progress > 0f) {
             host.getLocationInWindow(loc)
             val root = host.rootView
             node.setPosition(0, 0, w, h)
@@ -136,7 +138,9 @@ class GlassDrawable(private val host: View, var style: GlassStyle) : Drawable() 
             // Frosted fallback: no refraction, just tint, sheen and rim.
             rect.set(b)
             Squircle.roundRect(rect, radius, path)
-            fillPaint.color = tintColor.withAlpha((tintAlpha + 0.12f) * progress)
+            fillPaint.color = if (solid) {
+                (if (dark) Color.rgb(44, 44, 48) else Color.rgb(112, 112, 122)).withAlpha(0.94f * progress)
+            } else tintColor.withAlpha((tintAlpha + 0.12f) * progress)
             canvas.drawPath(path, fillPaint)
             sheenPaint.shader = LinearGradient(0f, b.top.toFloat(), 0f, b.bottom.toFloat(),
                 Color.WHITE.withAlpha(0.10f * progress), Color.TRANSPARENT, Shader.TileMode.CLAMP)

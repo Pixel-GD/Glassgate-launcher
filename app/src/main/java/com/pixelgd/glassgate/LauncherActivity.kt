@@ -46,7 +46,10 @@ class LauncherActivity : Activity(), HomeActions {
     val editMode by lazy { EditMode(this).apply { onAddWidget = { WidgetPicker.show(this@LauncherActivity) } } }
     private var resumed = false
     private var settingsDirty = false
-    private val prefsListener = Prefs.Listener { settingsChanged() }
+    private val prefsListener = Prefs.Listener { key ->
+        if (key == Prefs.REDUCE_MOTION && resumed) updateTilt()
+        settingsChanged()
+    }
     // Tinted icons take their colour from the wallpaper.
     private val wallpaperListener = WallpaperSource.Listener {
         if (launcher.prefs.iconStyle == IconStyle.TINTED) settingsChanged()
@@ -103,13 +106,18 @@ class LauncherActivity : Activity(), HomeActions {
         super.onResume()
         resumed = true
         if (settingsDirty) applySettings()
-        launcher.tilt.start()
+        updateTilt()
     }
 
     override fun onPause() {
         resumed = false
         launcher.tilt.stop()
         super.onPause()
+    }
+
+    /** Glass highlights follow the phone's tilt, unless Reduce Motion is on. */
+    private fun updateTilt() {
+        if (launcher.prefs.reduceMotion) launcher.tilt.stop() else launcher.tilt.start()
     }
 
     /** Settings changed (usually from the Settings screen): rebuild now, or when we're back. */
@@ -148,6 +156,8 @@ class LauncherActivity : Activity(), HomeActions {
         super.onConfigurationChanged(newConfig)
         launcher.wallpaper.refresh()
         launcher.icons.clear()
+        // Auto icons switch between their light and dark looks with the system.
+        launcher.updateIconLook()
         updateSystemBars()
         home.rebuild()
     }

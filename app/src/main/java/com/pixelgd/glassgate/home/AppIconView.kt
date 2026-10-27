@@ -48,7 +48,7 @@ open class AppIconView(
     private val iconPaint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG)
     private val labelPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.WHITE
-        textSize = context.sp(12f)
+        textSize = context.sp(Launcher.of(context).prefs.labelSizeSp)
         typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
         textAlign = Paint.Align.CENTER
         setShadowLayer(context.dp(3f), 0f, context.dp(0.5f), Color.argb(90, 0, 0, 0))

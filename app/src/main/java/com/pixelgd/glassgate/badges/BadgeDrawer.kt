@@ -8,6 +8,10 @@ import android.graphics.Typeface
 import android.view.View
 import android.view.ViewGroup
 import com.pixelgd.glassgate.Launcher
+import com.pixelgd.glassgate.library.CategoryFolderView
+import com.pixelgd.glassgate.library.CategoryTileView
+import com.pixelgd.glassgate.library.LibraryPage
+import com.pixelgd.glassgate.library.LibrarySearchView
 import com.pixelgd.glassgate.home.AppIconView
 import com.pixelgd.glassgate.util.Spring
 import java.text.NumberFormat
@@ -34,7 +38,18 @@ class BadgeDrawer private constructor(private val view: AppIconView) : Badges.Li
 
     private fun currentCount(): Int {
         if (!launcher.prefs.showBadges) return 0
+        if (!launcher.prefs.badgesInLibrary && inLibrary()) return 0
         return view.app?.let { Badges.count(it) } ?: 0
+    }
+
+    /** iOS hides badges in the App Library unless "Show in App Library" is on. */
+    private fun inLibrary(): Boolean {
+        var p = view.parent
+        while (p != null) {
+            if (p is LibraryPage || p is CategoryTileView || p is CategoryFolderView || p is LibrarySearchView) return true
+            p = p.parent
+        }
+        return false
     }
 
     /** Syncs to the store; animates only when the badge appears or disappears. */

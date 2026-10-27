@@ -48,7 +48,7 @@ Feature modules each get their own package and plug in through one `HomeActions`
 | Jiggle / edit mode | `edit/` | `enterEditMode()` |
 | Widgets | `widgets/` | replace the placeholder in `PageGridView.bind()` |
 | Notification badges | `badges/` | `AppIconView.badgeDrawer` (set by `BadgeDrawer.attach`); `Badges.total(apps)` for a folder's count |
-| Settings | `settings/` | `Prefs` in `Launcher.kt` (listen with `prefs.addListener`); open with `SettingsActivity.open(context)` |
+| Settings | `settings/` | `Prefs` in `Launcher.kt` (listen with `prefs.addListener`); open with `SettingsActivity.open(context, page)`. Each screen is a `SettingsPage` in `Pages.kt`; add it to `RootPage` and its search index |
 
 Module UIs are added to `LauncherActivity.overlay` and removed on dismiss
 (`dismissOverlays()` is called on Home and Back).
@@ -59,7 +59,10 @@ Module UIs are added to `LauncherActivity.overlay` and removed on dismiss
 - Glass surfaces use `GlassDrawable(view, GlassStyle.X)`; add a `GlassStyle` preset instead of
   hand-tuning numbers in a view.
 - Motion uses `util.Spring` with the shared presets.
-- Edit the home layout only through `launcher.layout.edit { ... }`.
+- Edit the home layout only through `launcher.layout.edit { ... }`. User edits are undoable
+  (Edit menu > Undo); pass `undoable = false` for the launcher's own bookkeeping.
+- Launch apps through `HomeActions.launch` / `AppRepository.launch`, which asks for Face ID
+  (biometrics) for locked apps. `launcher.apps.all` already leaves hidden apps out.
 - "Remove from Home Screen" puts an app's key in `HomeLayout.libraryOnly` so it isn't re-added;
   `placeFirstFree` takes it back out (use it for "Add to Home Screen"). Hidden pages have
   `HomePage.hidden` and aren't shown on the home screen.
